@@ -1,0 +1,19 @@
+# DV360 BidKit
+
+> Open-source toolkit for validating, evaluating, and compiling Google Display & Video 360 (DV360) Custom Bidding algorithms.
+
+## Documentation Overview
+- [Documentation Index](index.md): Complete architecture, comparison table, signal registry, and Google S2 readiness specs.
+- [Algorithmic Foundations](algorithmic_research_foundations.md): Academic research and econometric grounding for Custom Bidding, Empirical Bayes shrinkage, and off-policy evaluation.
+
+## Key Packages
+- `dv360-bidkit`: Open-source MIT core. Provides AST linter, pre-flight evaluator, rule compiler, and inventory policy manager.
+- `dv360-bidkit-pro`: Commercial extension. Provides Empirical Bayes shrinkage calibration, client funnel weighting (`bidkit-pro weights`), ternary outlier capping, and 8-artifact production campaign bundling (`bidkit-pro build`).
+
+## Core Concepts
+- **DV360 Custom Bidding DSL:** Python-subset grammar returning `float` or `None`. Uses aggregate functions (`sum_aggregate`, `max_aggregate`, `first_match_aggregate`). Disallows imports, loops, classes, lambdas, and dynamic execution.
+- **Model Training vs. Ad Serving:** Returning `None` in custom bidding scripts excludes impressions from model training; it does NOT block ads from serving. Ad-serving blocks must be exported as `targeting_block_request.csv` and trafficked into Line Item targeting.
+- **Empirical Bayes Shrinkage:** Replaces noisy raw viewability on low-volume publishers with shrinkage towards baseline viewability: $\lambda_i = \frac{m_i}{m_i + k^*}$.
+- **Econometric Transition Bound:** In multi-objective funnels, intermediate proxy weights must satisfy $w_{\text{proxy}} \le w_{\text{macro}} \times P(\text{Macro} \mid \text{Proxy})$.
+- **Score Mass Balancing:** Primary macro-conversions must command at least 65% of the expected score mass ($M = \sum N_k w_k$) to prevent proxy dilution.
+- **Ternary Outlier Capping:** Continuous rewards must be capped at the 95th percentile using ternary expressions (`cap if val > cap else val`) to prevent score variance inflation ($\max / \text{median} > 20\times$) and DSP pacing starvation.

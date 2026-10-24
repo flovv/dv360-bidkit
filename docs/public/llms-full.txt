@@ -1,0 +1,88 @@
+# DV360 BidKit & BidKit Pro: Full Technical Specification
+
+This document provides a comprehensive single-file technical reference for AI assistants working with `dv360-bidkit` and `dv360-bidkit-pro`.
+
+---
+
+## 1. Package Architecture & Responsibilities
+
+`dv360-bidkit` separates concerns strictly into:
+1. **The Public Core (`dv360-bidkit` — MIT):**
+   - AST Parser and Linter (`dv360_bidkit.linter.ast_validator`)
+   - 2026 Signal and Function Registry (`dv360_bidkit.contracts.signals`)
+   - Safe AST Interpreter & Simulator (`dv360_bidkit.evaluator.interpreter`)
+   - Deterministic Script Compiler & Simplifier (`dv360_bidkit.compiler.scripts`)
+   - Data Loader & Sanitizer (`dv360_bidkit.io.reports`)
+   - Customer Inventory Policy Manager (`dv360_bidkit.io.inventory`)
+   - Antigravity / Cursor / Claude Code Agent Skill (`.agents/skills/dv360-custom-bidding/SKILL.md`)
+
+2. **The Commercial Pro Extension (`dv360-bidkit-pro` — Proprietary):**
+   - Empirical Bayes Viewability Shrinkage (`dv360_bidkit_pro.calibration`)
+   - Funnel Evaluation & Weighting Engine (`dv360_bidkit_pro.funnel_weighting`)
+   - Multi-Objective Composite Funnels (`dv360_bidkit_pro.composite`)
+   - Impression-Weighted Quantization (`dv360_bidkit_pro.compression`)
+   - Customer Inventory Spend Audit (`dv360_bidkit_pro.inventory_audit`)
+   - 8-Artifact Production Campaign Bundler (`dv360_bidkit_pro.__init__`)
+   - Polar.sh Licensing & 24-hr HMAC Cache (`dv360_bidkit_pro.auth`)
+
+---
+
+## 2. Google Custom Bidding DSL Specification (2026.1)
+
+### Syntax & AST Constraints
+- Custom bidding scripts are evaluated per impression opportunity in real time (< 10ms execution budget).
+- Top-level `return` is allowed (e.g. `return sum_aggregate(...)` or `if domain in [...]: return None`).
+- Return types:
+  - `float >= 0.0`: Impression score.
+  - `None`: Impression is excluded from machine-learning model training.
+  - Negative scores are strictly disallowed and rejected by the validator.
+- Allowed Constructs: `Return`, `If`, `IfExp` (ternary), `Assign`, `BinOp`, `UnaryOp`, `Compare`, `Call`, `Constant`, `Name`, `List`, `Tuple`, `BoolOp`.
+- Disallowed Constructs: `For`, `While`, `Import`, `ClassDef`, `FunctionDef` (except script wrapper), `Lambda`, `Try`, `With`.
+
+### Signal Registry
+- Aggregations: `sum_aggregate(list[tuple[list[bool], float]])`, `max_aggregate`, `first_match_aggregate`.
+- Floodlight: `total_conversion_count(activity_id, model_id)`, `total_conversion_value`, `total_conversion_quantity`, `conversion_custom_variable(activity_id, model_id, u_index)`.
+- GA4: `ga4_conversions_count(property_id, event_name)`.
+- Dimensions: `domain` (str), `site_id` (int), `device_type` (1=Desktop, 2=Phone, 3=Tablet, 4=CTV), `environment` (1=Web, 2=App), `country_code` (str), `line_item_id` (int), `advertiser_id` (int), `click` (bool).
+- Deprecated: `browser_id`, `has_ga_goal`, `ga_goals_count`, `conversion_variable_str`.
+
+---
+
+## 3. Mathematical & Econometric Guarantees
+
+### Empirical Bayes Viewability Shrinkage
+For publisher $i$ with $m_i$ measurable impressions and $v_i$ viewable impressions, observed viewability is $\hat{\theta}_i = v_i / m_i$.  
+Shrunk score:
+$$\theta_i^* = \lambda_i \hat{\theta}_i + (1 - \lambda_i) \bar{\theta}$$
+where:
+$$\lambda_i = \frac{m_i}{m_i + k^*}$$
+Hyperparameter $k^*$ is auto-tuned via Marginal Maximum Likelihood (MML) from the between-group variance across high-volume publishers.
+
+### Econometric Transition Bounding
+For candidate proxy signal $k$ evaluated against primary conversion outcome:
+$$w_k \le w_{\text{macro}} \times P(\text{Conversion} \mid \text{Proxy}_k)$$
+Any signal with empirical lift $< 1.0\times$ is classified as `rejected` to prevent optimizing for click-fraud or bounce inventory.
+
+### Score Mass Balancing
+Total reward mass across expected volume:
+$$M = N_{\text{macro}} w_{\text{macro}} + \sum_k N_k w_k$$
+Proxy weights are scaled so:
+$$\frac{N_{\text{macro}} w_{\text{macro}}}{M} \ge 0.65$$
+ensuring primary conversions drive at least 65% of learning gradients.
+
+### Impression-Weighted Quantization
+$N$ domain rules are partitioned into $K$ bins. For bin $b$, the quantized score is the impression-weighted centroid:
+$$s_b = \frac{\sum_{i \in b} w_i s_i}{\sum_{i \in b} w_i}$$
+This guarantees minimal weighted RMSE distortion and maintains $R^2 \ge 0.85$ while shrinking script size below 65 KB.
+
+---
+
+## 4. Production Deployment & Antigravity Agent Skill
+
+Agents should use the CLI or Python API to execute tasks:
+- Inspect & Screen Funnel: `bidkit-pro weights --report rep.csv --mapping map.json --macro "Purchases" --proxies "Add_to_Cart,Clicks"`
+- Build Campaign Bundle: `bidkit-pro build --report rep.csv --mapping map.json --config cfg.json --weights weights.json --out-dir ./bundle`
+- Validate Script: `bidkit lint script.py`
+- Simulate Script: `bidkit evaluate script.py --report rep.csv --mapping map.json`
+
+Always review `targeting_block_request.csv` in the output bundle and remind programmatic traders to traffic ad-serving blocks in Line Item targeting rather than relying on `return None`.
