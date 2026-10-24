@@ -224,7 +224,7 @@ class ReadinessStatus(str, Enum):
 
 class ReadinessAssessment(BaseModel):
     status: ReadinessStatus = ReadinessStatus.READINESS_UNKNOWN
-    verified_history_window_days: int = 30
+    verified_history_window_days: int | None = None
     required_advertiser_positives: int = 500
     observed_advertiser_positives: int = 0
     required_line_item_positives: int = 50

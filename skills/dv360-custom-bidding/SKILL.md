@@ -108,12 +108,13 @@ Customer domain/site lists for score overrides and model training exclusions:
     }
   ],
   "config": {
-    "allow_subdomains": true,
+    "allow_subdomains": false,
     "strip_www": true,
     "unknown_action": "neutral_fallback"
   }
 }
 ```
+*Note: `allow_subdomains` must be `false` for DV360 custom bidding compilation because Google's AST engine does not support dynamic regex or subdomain wildcard evaluation at scoring time. Subdomains must be explicitly expanded into entry rows.*
 
 ---
 
@@ -250,3 +251,9 @@ export_campaign_bundle(bundle, output_dir="./output_bundle")
    Never rely solely on raw Clicks (`CTR`) as an alternative bidding signal. Click optimization attracts accidental clicks, bot traffic, and low-dwell MFA inventory. Use Active View viewability ($\ge 5\text{s}$) or mid-funnel actions instead.
 5. **CTV Web Domain Separation:**  
    Connected TV (`device_type == 4`) apps report app bundle IDs, not web domains. Never mix web domain rules with CTV targeting.
+6. **DV360 Canonical Signal Codes:**
+   - `device_type`: `0` (Unknown), `1` (Desktop), `2` (Smartphone), `3` (Tablet), `4` (Connected TV)
+   - `environment`: `10` (Web Optimized), `11` (Web Not Optimized), `12` (App)
+   - Note: The `domain` signal is only valid in web environments (`environment in [10, 11]`); mobile apps (`environment == 12`) and CTV evaluate `app_id` / bundle IDs.
+7. **Empirical Funnel Balancing vs Platform Constraints:**
+   - The default `target_macro_mass_share = 0.65` (65% macro / 35% proxies) is an econometric mass-balancing recommendation to prevent gradient starvation; it is not a hardcoded DV360 platform constraint. Traders can calibrate target shares between 0.50 and 0.85 based on client conversion density.

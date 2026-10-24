@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -78,14 +79,15 @@ def is_entry_expired(
     """Checks whether an inventory policy entry has expired.
 
     Compares ISO-8601 date strings (YYYY-MM-DD) against `reference_date` (if supplied)
-    or the entry's `as_of` date.
+    or the current UTC date.
     """
     if not entry.expiry or not str(entry.expiry).strip():
         return False
     exp_str = str(entry.expiry).strip()[:10]
-    ref_str = (reference_date or entry.as_of or "").strip()[:10]
-    if not ref_str:
-        return False
+    if reference_date is not None and str(reference_date).strip():
+        ref_str = str(reference_date).strip()[:10]
+    else:
+        ref_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return exp_str < ref_str
 
 

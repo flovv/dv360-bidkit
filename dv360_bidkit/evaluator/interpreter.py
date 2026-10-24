@@ -331,13 +331,17 @@ class ASTInterpreter:
         if compound_key in context:
             return context[compound_key], False
 
-        # Fallback to 0 / empty string if signal missing from context
-        if func_name.startswith("total_conversion_"):
-            return 0.0, False
-        if func_name == "conversion_custom_variable":
-            return "", False
-        if func_name == "ga4_conversions_count":
-            return 0, False
+        # Check general column name fallback
+        if func_name in context:
+            return context[func_name], False
+        if func_name == "total_conversion_count" and "conversions" in context:
+            return context["conversions"], False
+        if func_name == "total_conversion_value" and "conversion_value" in context:
+            return context["conversion_value"], False
+
+        # If signal is absent from row context and report mapping, signal evaluation error
+        if func_name.startswith("total_conversion_") or func_name in ("conversion_custom_variable", "ga4_conversions_count"):
+            raise EvaluationError(f"Missing signal data in row context for '{func_name}' (expected column or key '{compound_key}').")
 
         raise EvaluationError(f"Function '{func_name}' has no runtime definition in evaluator.")
 

@@ -12,12 +12,17 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class ScriptReadinessState(str, Enum):
+class ScriptState(str, Enum):
     STATE_UNSPECIFIED = "STATE_UNSPECIFIED"
+    ACCEPTED = "ACCEPTED"
     ACTIVE = "READINESS_STATE_ACTIVE"
-    INSUFFICIENT_DATA = "READINESS_STATE_INSUFFICIENT_DATA"
     TRAINING = "READINESS_STATE_TRAINING"
-    EVALUATION_FAILURE = "READINESS_STATE_EVALUATION_FAILURE"
+    REJECTED = "REJECTED"
+    PENDING = "PENDING"
+
+
+# Alias for backwards compatibility
+ScriptReadinessState = ScriptState
 
 
 class GoogleScriptUploadPayload(BaseModel):
@@ -25,7 +30,7 @@ class GoogleScriptUploadPayload(BaseModel):
     advertiser_id: int | None = None
     algorithm_id: str
     script_content: str
-    target_readiness_state: ScriptReadinessState = ScriptReadinessState.STATE_UNSPECIFIED
+    target_state: ScriptState = ScriptState.STATE_UNSPECIFIED
 
 
 def prepare_script_upload_payload(
@@ -45,21 +50,27 @@ def prepare_script_upload_payload(
 
 
 def parse_script_readiness_response(response_dict: dict[str, Any]) -> dict[str, Any]:
-    """Extracts readiness state and errors from DV360 API script response."""
+    """Extracts state, active status, and errors from DV360 API script response.
+
+    DV360 v4 API specifies:
+    - state: ACCEPTED | REJECTED | PENDING | STATE_UNSPECIFIED
+    - active: boolean flag indicating if script is currently active for scoring
+    """
     raw_state = response_dict.get("state", "STATE_UNSPECIFIED")
     try:
-        readiness_state = ScriptReadinessState(raw_state)
+        script_state = ScriptState(raw_state)
     except ValueError:
-        readiness_state = ScriptReadinessState.STATE_UNSPECIFIED
+        script_state = ScriptState.STATE_UNSPECIFIED
 
+    is_active = bool(response_dict.get("active", False)) or script_state in (ScriptState.ACCEPTED, ScriptState.ACTIVE)
     errors = response_dict.get("errors", [])
     script_id = response_dict.get("customBiddingScriptId")
     create_time = response_dict.get("createTime")
 
     return {
         "script_id": script_id,
-        "state": readiness_state.value,
-        "is_active": readiness_state == ScriptReadinessState.ACTIVE,
+        "state": script_state.value,
+        "is_active": is_active,
         "errors": errors,
         "create_time": create_time,
     }

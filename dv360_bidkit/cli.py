@@ -197,17 +197,19 @@ def compile_cmd(
 
     result = compile_script(ruleset, policy=inv_policy)
     out_path = Path(out)
+
+    if not result.budgets_passed:
+        console.print("[red]Compilation failed budget and validation checks:[/red]")
+        for diag in result.diagnostics:
+            if diag.severity == DiagnosticSeverity.ERROR:
+                console.print(f"[red]  ERROR: [{diag.code}] {diag.message}[/red]")
+        sys.exit(1)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(result.script_code, encoding="utf-8")
 
     console.print(f"[green]✓ Compiled script written to: {out}[/green]")
     console.print(f"  Rules: {result.rule_count} | AST nodes: {result.ast_nodes} | Size: {result.byte_count} bytes")
-
-    if not result.budgets_passed:
-        for diag in result.diagnostics:
-            if diag.severity == DiagnosticSeverity.ERROR:
-                console.print(f"[red]ERROR: {diag.message}[/red]")
-        sys.exit(1)
 
 
 @app.command("evaluate")

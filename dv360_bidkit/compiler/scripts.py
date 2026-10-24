@@ -16,6 +16,7 @@ from dv360_bidkit.contracts.schemas import (
     AggregationMode,
     CompilationResult,
     Diagnostic,
+    DiagnosticSeverity,
     InventoryAction,
     InventoryEntityType,
     InventoryPolicy,
@@ -28,18 +29,31 @@ from dv360_bidkit.io.inventory import is_entry_expired
 from dv360_bidkit.linter.ast_validator import lint_script
 
 
+def _format_literal(val: Any) -> str:
+    """Formats a Python literal value with proper typing and JSON escaping."""
+    if isinstance(val, bool):
+        return "True" if val else "False"
+    if isinstance(val, (int, float)):
+        return repr(val)
+    if isinstance(val, str):
+        return json.dumps(val)
+    if isinstance(val, (list, tuple, set)):
+        formatted_items = [_format_literal(item) for item in val]
+        return "[" + ", ".join(formatted_items) + "]"
+    return repr(val)
+
+
 def _format_condition(cond: RuleCondition) -> str:
     """Formats a single RuleCondition into DV360 DSL condition text."""
     val = cond.value
-    if isinstance(val, str):
-        val_str = f'"{val}"'
-    elif isinstance(val, list):
-        sorted_items = sorted(str(x) for x in val)
-        val_str = "[" + ", ".join(f'"{x}"' for x in sorted_items) + "]"
-    elif isinstance(val, bool):
-        val_str = "True" if val else "False"
+    if isinstance(val, list):
+        try:
+            sorted_items = sorted(val)
+        except TypeError:
+            sorted_items = sorted(val, key=str)
+        val_str = "[" + ", ".join(_format_literal(x) for x in sorted_items) + "]"
     else:
-        val_str = str(val)
+        val_str = _format_literal(val)
 
     return f"{cond.field} {cond.operator} {val_str}"
 
@@ -49,7 +63,7 @@ def _format_entity_list(values: list[str], *, as_int_if_numeric: bool = False) -
     unique_vals = sorted(set(values))
     if as_int_if_numeric and all(v.isdigit() for v in unique_vals):
         return "[" + ", ".join(str(int(v)) for v in unique_vals) + "]"
-    return "[" + ", ".join(f'"{v}"' for v in unique_vals) + "]"
+    return "[" + ", ".join(json.dumps(v) for v in unique_vals) + "]"
 
 
 def compile_script(
@@ -95,6 +109,21 @@ def compile_script(
     allowlist_domains: set[str] = set()
     allowlist_site_ids: set[str] = set()
     override_count = 0
+
+    policy_diagnostics: list[Diagnostic] = []
+    if policy is not None and policy.config.allow_subdomains:
+        policy_diagnostics.append(
+            Diagnostic(
+                code="UNSUPPORTED_POLICY_SUBDOMAINS",
+                severity=DiagnosticSeverity.ERROR,
+                message=(
+                    "DV360 Custom Bidding DSL does not support runtime subdomain wildcard matching. "
+                    "allow_subdomains=True cannot be evaluated in DV360 scripts without an explicitly expanded domain list. "
+                    "Expand concrete subdomains into individual policy entries or set allow_subdomains=False."
+                ),
+                corrective_action="Expand concrete subdomains into individual policy entries before compilation.",
+            )
+        )
 
     if policy is not None:
         for entry in policy.entries:
@@ -249,6 +278,7 @@ def compile_script(
     # Lint generated script to verify syntax correctness
     lint_report = lint_script(script_code)
     diagnostics = list(lint_report.diagnostics)
+    diagnostics.extend(policy_diagnostics)
 
     # Check budgets
     rule_count = len(all_rules) + override_count
@@ -256,6 +286,7 @@ def compile_script(
         script_code, rule_count, budgets
     )
     diagnostics.extend(budget_diags)
+    has_fatal_error = any(d.severity == DiagnosticSeverity.ERROR for d in diagnostics) or lint_report.has_errors
 
     return CompilationResult(
         script_code=script_code,
@@ -263,6 +294,6 @@ def compile_script(
         byte_count=bytes_len,
         char_count=chars,
         rule_count=rule_count,
-        budgets_passed=passed and not lint_report.has_errors,
+        budgets_passed=passed and not has_fatal_error,
         diagnostics=diagnostics,
     )

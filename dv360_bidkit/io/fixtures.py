@@ -166,5 +166,5 @@ def create_sample_inventory_policy() -> InventoryPolicy:
     ]
     return InventoryPolicy(
         entries=entries,
-        config=InventoryPolicyConfig(allow_subdomains=True, strip_www=True),
+        config=InventoryPolicyConfig(allow_subdomains=False, strip_www=True),
     )
