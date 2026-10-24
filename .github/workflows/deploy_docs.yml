@@ -41,11 +41,6 @@ jobs:
           cd docs
           npx vitepress build
 
-      - name: Copy llms.txt files to build dist
-        run: |
-          cp docs/llms.txt docs/.vitepress/dist/llms.txt
-          cp docs/llms-full.txt docs/.vitepress/dist/llms-full.txt
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
