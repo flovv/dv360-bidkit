@@ -269,7 +269,7 @@ class CompilationResult(BaseModel):
 
 class ArtifactManifest(BaseModel):
     manifest_version: str = "1.0"
-    core_version: str = "0.1.0"
+    core_version: str = "0.1.1"
     pro_version: str | None = None
     profile_version: str | None = None
     registry_version: str = "2026.1"

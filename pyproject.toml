@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dv360-bidkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "DV360 Custom Bidding DSL Linter, Pre-Flight Simulator, and Rule Compiler"
 readme = "README.md"
 license = { text = "MIT" }

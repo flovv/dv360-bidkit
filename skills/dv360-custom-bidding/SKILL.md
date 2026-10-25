@@ -1,7 +1,7 @@
 ---
 name: dv360-custom-bidding
 description: Validate, lint, simulate, calibrate, and compile DV360 Custom Bidding algorithms and scripts using dv360-bidkit and dv360-bidkit-pro.
-version: 0.1.0
+version: 0.1.1
 author: flovv
 license: MIT
 platforms: [linux, macos, windows]

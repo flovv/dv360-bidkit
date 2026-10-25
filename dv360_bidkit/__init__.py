@@ -50,7 +50,7 @@ from dv360_bidkit.io.reports import load_report
 from dv360_bidkit.linter.ast_validator import lint_script
 from dv360_bidkit.reporting.basic import render_report
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     # Primary API entry points
