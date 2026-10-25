@@ -30,3 +30,10 @@ Thumbs.db
 demo*/
 bundle*/
 out/
+
+# Node / VitePress documentation build artifacts
+node_modules/
+docs/node_modules/
+docs/package-lock.json
+docs/.vitepress/dist/
+docs/.vitepress/cache/
