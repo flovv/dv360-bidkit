@@ -88,6 +88,8 @@ DV360 custom bidding models replace Google's standard click/conversion heuristic
 | **Deterministic RuleSet Compiler (`sum`, `max`, `first_match`)** | ✅ Included (Manual weights) | ✅ Included (Auto-calibrated) |
 | **Customer Inventory Policy Loader (Exclusions & Overrides)** | ✅ Included | ✅ Included |
 | **DV360 Report Loader (Preamble & Footer Auto-Stripping)** | ✅ Included | ✅ Included |
+| **Attention Dwell Prior Tables (Simonov & Valletti / Lumen)** | ✅ Open Normative Factors | ✅ Multi-Factor Joint Calibration |
+| **MFA (Made-For-Advertising) Clutter Discounting Engine** | ❌ (Manual domain lists) | ✅ Automated Spillover & MFA Discount |
 | **Empirical Bayes Viewability Shrinkage (MML Auto-Tuning)** | ❌ (Static rules only) | ✅ Automatic $\lambda_i$ shrinkage |
 | **Client Funnel Proxy Screening & Mass-Balanced Weighting** | ❌ (Manual guesswork) | ✅ `bidkit-pro weights` |
 | **Automated 95th-Percentile Ternary Outlier Capping** | ❌ (Manual coding) | ✅ DV360-safe ternary emit |
@@ -103,6 +105,7 @@ DV360 custom bidding models replace Google's standard click/conversion heuristic
 | **AST Linter & Platform Rejections** | N/A (Standard DV360 CPA/CPC) | **0h turnaround** (catches syntax & type errors locally) | **0h turnaround** (validated before artifact packaging) |
 | **Script Engineering & QA Time** | 10–15 hours manual Python scripting per campaign | **2–3 hours** (automated compilation & local simulation) | **< 30 minutes** (end-to-end automated pipeline & CLI) |
 | **Outlier & Pacing Starvation Risk** | High risk ($\max/\text{median} > 20\times$ destabilizes pacing $\alpha_t$) | Manual inspection required via diagnostic JSON | **Automated 95th-percentile ternary capping** eliminates starvation |
+| **Attention & Dwell Optimization** | 3rd-party vendor fees ($0.20–$0.40 CPM) or run unweighted | **Zero-vendor-fee open dwell tables** (format, position, device) | **Dynamic multi-factor calibration** with automated MFA & clutter discounting |
 | **Small-Sample Tail Noise Waste** | Unprotected (long-tail domains get maximum bid weights) | Manual domain exclusions via `policy.csv` | **Empirical Bayes shrinkage** ($\lambda_i$) prevents ~€4k–€8k tail overspend |
 | **Multi-Objective Funnel Optimization** | Single Floodlight conversion event only | Manual proxy weights (risk of proxy domination) | **Econometric mass balancing** preserves 65% conversion mass |
 | **Pre-Flight Simulation & Safety** | None (upload and wait for Google's model to train) | **Deterministic AST simulation** against historical CSVs | **Turnkey 8-artifact campaign bundle** with HTML audit report |
