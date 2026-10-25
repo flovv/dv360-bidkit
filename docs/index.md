@@ -40,6 +40,12 @@ flowchart TD
     D --> L
 ```
 
+::: tip DV360 BidKit Pro Commercial License
+Supercharge your custom bidding workflows with automated Empirical Bayes Active View calibration, multi-objective funnel mass balancing (`bidkit-pro weights`), ternary outlier capping, and complete campaign bundle export.
+
+👉 **[Get DV360 BidKit Pro License](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT)**
+:::
+
 ---
 
 ## Signal Registry Reference (Google 2026.1 Specification)
@@ -90,3 +96,18 @@ DV360 models require sufficient positive score historical density over the relev
 * `bidkit-pro auth [--key <key>]`: Authenticate commercial license with Polar.sh.
 * `bidkit-pro weights --report <report.csv> --mapping <mapping.json> --macro "<col>" --proxies "<col1,col2>" [--out <weights.json>]`: Screen proxies and compute mass-balanced weights.
 * `bidkit-pro build --report <report.csv> --mapping <mapping.json> --config <campaign.json> [--weights <weights.json>] [--policy <policy.csv>] [--out-dir <bundle_dir>]`: Export turnkey 8-artifact production bundle.
+
+---
+
+## DV360 BidKit Pro Installation & Authentication
+
+1. **Obtain License & Download Wheel Bundle:** Purchase on [Polar.sh](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT) and download `dv360-bidkit-pro-0.1.0-all-wheels.zip`.
+2. **Install Platform Binary:**
+   ```bash
+   unzip dv360-bidkit-pro-0.1.0-all-wheels.zip
+   pip install --find-links . dv360-bidkit-pro
+   ```
+3. **Authenticate License:**
+   ```bash
+   bidkit-pro auth --key BK_PRO_...
+   ```

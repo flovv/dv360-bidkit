@@ -33,6 +33,7 @@ export default defineConfig({
       { text: 'Documentation', link: '/' },
       { text: 'Research Foundations', link: '/algorithmic_research_foundations' },
       { text: 'LLM Guide', link: '/llms.txt' },
+      { text: 'Get Pro License', link: 'https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT' },
       { text: 'GitHub', link: 'https://github.com/flovv/dv360-bidkit' }
     ],
     sidebar: [

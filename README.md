@@ -1,8 +1,10 @@
 # dv360-bidkit
 
+[![PyPI version](https://img.shields.io/pypi/v/dv360-bidkit.svg)](https://pypi.org/project/dv360-bidkit/)
 [![CI](https://github.com/flovv/dv360-bidkit/actions/workflows/ci.yml/badge.svg)](https://github.com/flovv/dv360-bidkit)
 [![Python versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://github.com/flovv/dv360-bidkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Polar Pro](https://img.shields.io/badge/Polar.sh-Get%20Pro%20License-blueviolet)](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-dv360--custom--bidding-purple)](https://skills.sh/flovv/dv360-bidkit/dv360-custom-bidding)
 
 **Turn DV360 report data into verified, high-performance custom bidding algorithms without guesswork, AST syntax errors, or platform rejections.**
@@ -218,6 +220,27 @@ domain,fraud-network.com,exclude_from_training,audit_2026,2026-01-01,,0.0,Exclud
 domain,direct-partner.com,set_score,pmp_deal,2026-01-01,2026-12-31,25.0,Preferred Deal Floor
 domain,toxic-site.com,targeting_block_request,safety,2026-01-01,,0.0,Block Ad Serving
 ```
+
+---
+
+## ⚡ Commercial Pro Tier (`dv360-bidkit-pro`)
+
+`dv360-bidkit-pro` is available for enterprise programmatic trading desks and agencies requiring automated Active View quality shrinkage, multi-objective Floodlight funnel balancing, and turnkey campaign bundle compilation:
+
+👉 **[Get DV360 BidKit Pro License on Polar.sh](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT)**
+
+### Pro Installation & Setup
+
+1. **Obtain License & Download Wheel Bundle:** Purchase on [Polar.sh](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT) to receive your `BK_PRO_...` license key and pre-compiled native binary wheel bundle (`dv360-bidkit-pro-0.1.0-all-wheels.zip`).
+2. **Install Platform Wheel:**
+   ```bash
+   unzip dv360-bidkit-pro-0.1.0-all-wheels.zip
+   pip install --find-links . dv360-bidkit-pro
+   ```
+3. **Authenticate:**
+   ```bash
+   bidkit-pro auth --key BK_PRO_...
+   ```
 
 ---
 
