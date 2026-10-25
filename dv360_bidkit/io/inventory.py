@@ -212,13 +212,24 @@ def load_inventory_policy(
 
     for row in raw_entries:
         entity_type_raw = str(row.get("entity_type", "domain")).strip().lower()
-        entity_type = (
-            InventoryEntityType.DOMAIN if entity_type_raw == "domain" else InventoryEntityType.SITE_ID
-        )
+        if entity_type_raw in ("app_id", "app", "app_bundle"):
+            entity_type = InventoryEntityType.APP_ID
+            namespace_default = "app"
+        elif entity_type_raw in ("store_url",):
+            entity_type = InventoryEntityType.STORE_URL
+            namespace_default = "app"
+        elif entity_type_raw in ("site_id", "site"):
+            entity_type = InventoryEntityType.SITE_ID
+            namespace_default = "site"
+        else:
+            entity_type = InventoryEntityType.DOMAIN
+            namespace_default = "domain"
 
         val = str(row.get("entity_value", "")).strip()
         if entity_type == InventoryEntityType.DOMAIN:
             val = normalize_domain(val, strip_www=config.strip_www)
+
+        namespace = str(row.get("namespace", namespace_default)).strip().lower()
 
         action_raw = str(row.get("action", "annotate")).strip().lower()
         try:
@@ -239,6 +250,7 @@ def load_inventory_policy(
             action=action,
             source=source,
             as_of=as_of,
+            namespace=namespace,
             label=label,
             expiry=expiry,
             score=score_val,

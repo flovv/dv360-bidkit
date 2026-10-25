@@ -258,3 +258,68 @@ def test_compiler_score_expression_ternary_cap():
     assert interp.evaluate({"total_conversion_value:555:0": 20.0}).score == 40.0
     # Revenue = 120.0 -> capped at 50.0 -> 50.0 * 2.0 = 100.0
     assert interp.evaluate({"total_conversion_value:555:0": 120.0}).score == 100.0
+
+
+def test_compiler_app_id_policy_and_web_only_domains():
+    """Verify app_id policy support and web_only_domains flag protecting CTV/In-App."""
+    from dv360_bidkit.contracts.schemas import InventoryPolicyConfig
+    from dv360_bidkit.evaluator.interpreter import create_interpreter
+
+    ruleset = RuleSet(
+        aggregation_mode=AggregationMode.FIRST_MATCH,
+        rules=[
+            Rule(
+                id="default_rule",
+                conditions=[RuleCondition(field="device_type", operator="==", value=1)],
+                score=5.0,
+            )
+        ],
+        fallback_score=1.0,
+    )
+    policy = InventoryPolicy(
+        entries=[
+            InventoryPolicyEntry(
+                entity_type=InventoryEntityType.APP_ID,
+                entity_value="com.bad.app",
+                action=InventoryAction.EXCLUDE_FROM_TRAINING,
+                namespace="app",
+                source="test",
+                as_of="2026-01-01",
+            ),
+            InventoryPolicyEntry(
+                entity_type=InventoryEntityType.APP_ID,
+                entity_value="com.premium.app",
+                action=InventoryAction.SET_SCORE,
+                score=25.0,
+                namespace="app",
+                source="test",
+                as_of="2026-01-01",
+            ),
+            InventoryPolicyEntry(
+                entity_type=InventoryEntityType.DOMAIN,
+                entity_value="badweb.com",
+                action=InventoryAction.EXCLUDE_FROM_TRAINING,
+                namespace="domain",
+                source="test",
+                as_of="2026-01-01",
+            ),
+        ],
+        config=InventoryPolicyConfig(web_only_domains=True),
+    )
+    comp = compile_script(ruleset, policy=policy)
+    assert lint_script(comp.script_code).is_valid
+    assert "if environment in [10, 11] and domain in [\"badweb.com\"]:" in comp.script_code
+    assert "if app_id in [\"com.bad.app\"]:" in comp.script_code
+    assert "if app_id in [\"com.premium.app\"]:" in comp.script_code
+
+    interp = create_interpreter(comp.script_code)
+    # Bad app excluded
+    assert interp.evaluate({"app_id": "com.bad.app"}).is_excluded is True
+    # Premium app gets 25.0
+    assert interp.evaluate({"app_id": "com.premium.app"}).score == 25.0
+    # In-App environment with domain="badweb.com" is NOT excluded by web-only domain check
+    res_app_with_domain = interp.evaluate({"environment": 12, "domain": "badweb.com", "app_id": "com.other.app"})
+    assert res_app_with_domain.is_excluded is False
+    # Web environment with domain="badweb.com" IS excluded
+    res_web = interp.evaluate({"environment": 10, "domain": "badweb.com"})
+    assert res_web.is_excluded is True

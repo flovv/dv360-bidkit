@@ -127,6 +127,16 @@ NUMERIC_CANONICAL_FIELDS = {
 }
 
 
+INTEGER_CANONICAL_FIELDS = {
+    "impressions",
+    "measurable_impressions",
+    "viewable_impressions",
+    "clicks",
+    "completed_views",
+    "audible_measurable",
+}
+
+
 def _detect_header_skiprows(path_obj: Path, sep: str, expected_cols: set[str]) -> int:
     """Scans the first 35 lines of a CSV/TSV file to locate the actual table header row."""
     expected_lower = {c.strip().lower() for c in expected_cols if c}
@@ -149,8 +159,15 @@ def _detect_header_skiprows(path_obj: Path, sep: str, expected_cols: set[str]) -
     return 0
 
 
-def _clean_numeric_series(series: pd.Series) -> pd.Series:
-    """Cleans locale-formatted numbers, thousand separators, currency symbols, and percentages."""
+def _clean_numeric_series(series: pd.Series, *, is_integer_metric: bool = False) -> pd.Series:
+    """Cleans locale-formatted numbers, thousand separators, currency symbols, and percentages.
+    
+    Robustly handles:
+    - European formatting (e.g. '1.234.567,89', '1.234,56', '1.234.567')
+    - US formatting (e.g. '1,234,567.89', '1,234.56')
+    - Privacy-suppressed values (e.g. '< 100', '<10', '< 5', '*', '(not set)') -> converted to np.nan
+    - Non-breaking spaces and currency symbols (€, $, £, CHF)
+    """
     if pd.api.types.is_numeric_dtype(series):
         return series
 
@@ -158,33 +175,69 @@ def _clean_numeric_series(series: pd.Series) -> pd.Series:
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return v
         s = str(v).strip()
-        if not s or s in ("-", "--", "N/A", "n/a", "null"):
+        if not s or s in (
+            "-",
+            "--",
+            "N/A",
+            "n/a",
+            "null",
+            "NULL",
+            "None",
+            "*",
+            "**",
+            "(not set)",
+            "(not provided)",
+            "(unavailable)",
+            "unknown",
+        ):
             return np.nan
+
+        # Privacy-suppressed threshold values (e.g. "< 100", "<10", "< 5", "< 0.01%")
+        if s.startswith("<") or s.startswith("≤"):
+            return np.nan
+
         is_pct = s.endswith("%")
         if is_pct:
             s = s[:-1].strip()
-        # Strip currency symbols and spaces
+
+        # Strip non-breaking spaces and regular spaces
+        s = s.replace("\xa0", "").replace("\u202f", "").replace(" ", "")
+
+        # Strip currency symbols
         for sym in ("$", "€", "£", "CHF", "USD", "EUR"):
             s = s.replace(sym, "")
         s = s.strip()
-        # Handle comma thousand separators (e.g. "1,234,567" or "1,234.56")
+
+        if not s:
+            return np.nan
+
+        # Handle European vs US formatting:
         if "," in s and "." in s:
-            if s.rfind(",") < s.rfind("."):
-                s = s.replace(",", "")
-            else:
+            if s.rfind(",") > s.rfind("."):
+                # "1.234.567,89" or "1.234,56" -> period is thousand, comma is decimal
                 s = s.replace(".", "").replace(",", ".")
+            else:
+                # "1,234,567.89" -> comma is thousand, period is decimal
+                s = s.replace(",", "")
         elif "," in s:
-            # Check if comma is a 3-digit thousand separator (e.g. "12,345")
+            # Check if comma is a 3-digit thousand separator (e.g. "12,345" vs decimal "12,34")
             parts = s.split(",")
             if len(parts) > 1 and all(len(p) == 3 and p.isdigit() for p in parts[1:]):
                 s = s.replace(",", "")
             else:
                 s = s.replace(",", ".")
+        elif "." in s:
+            # Check if period is used as thousand separator without comma (e.g. "1.234.567" or "100.000")
+            parts = s.split(".")
+            if len(parts) > 1 and all(len(p) == 3 and p.isdigit() for p in parts[1:]):
+                if is_integer_metric or len(parts) > 2:
+                    s = s.replace(".", "")
+
         try:
             num = float(s)
             return num / 100.0 if is_pct else num
         except ValueError:
-            return v
+            return np.nan
 
     cleaned = series.map(_parse_val)
     try:
@@ -252,7 +305,7 @@ def load_report(
     skiprows = _detect_header_skiprows(path_obj, sep, expected_cols)
 
     try:
-        df = pd.read_csv(path_obj, sep=sep, encoding="utf-8-sig", skiprows=skiprows)
+        df = pd.read_csv(path_obj, sep=sep, encoding="utf-8-sig", skiprows=skiprows, dtype=str)
     except Exception as exc:
         raise ReportMappingError(f"Failed to read report file {path}: {exc}") from exc
 
@@ -301,7 +354,23 @@ def load_report(
                 numeric_cols_to_clean.add(c)
 
     for col_name in numeric_cols_to_clean:
-        df[col_name] = _clean_numeric_series(df[col_name])
+        canon = None
+        for k, v in resolved_field_map.items():
+            if v == col_name:
+                canon = k
+                break
+        is_int_m = canon in INTEGER_CANONICAL_FIELDS
+        df[col_name] = _clean_numeric_series(df[col_name], is_integer_metric=is_int_m)
+
+    # Convert non-metric columns containing integer digits (e.g. IDs, device_type, environment)
+    for col in df.columns:
+        if col not in numeric_cols_to_clean:
+            non_null = df[col].dropna()
+            if not non_null.empty and non_null.astype(str).str.isdigit().all():
+                try:
+                    df[col] = df[col].astype(int)
+                except (ValueError, TypeError):
+                    pass
 
     # Update mapping with resolved column names if any alias/case-folding occurred
     effective_mapping = mapping.model_copy(update={"canonical_field_map": resolved_field_map})

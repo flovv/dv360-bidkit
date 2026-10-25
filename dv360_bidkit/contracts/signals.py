@@ -207,6 +207,12 @@ SIGNAL_REGISTRY: dict[str, SignalDefinition] = {
         applicability=Applicability.DISPLAY,
         notes="Normalized domain/site hostname. Not available for Connected TV (CTV requires site_id).",
     ),
+    "app_id": SignalDefinition(
+        name="app_id",
+        kind=SignalKind.DIMENSION,
+        return_type="str",
+        notes="Mobile app bundle identifier or package name (e.g. 'com.example.app').",
+    ),
     "site_id": SignalDefinition(
         name="site_id",
         kind=SignalKind.DIMENSION,

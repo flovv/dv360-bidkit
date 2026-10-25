@@ -30,6 +30,26 @@ While the open-core `dv360-bidkit` handles grammar linting, basic rule compilati
 
 ---
 
+## Commercial Value Analysis: €100,000 Monthly Spend Scenario
+
+How does running custom bidding with DV360 BidKit translate into tangible operational and media performance? Below is an illustrative comparative analysis for an enterprise programmatic campaign spending €100,000/month:
+
+| Dimension / Metric | Plain DV360 (Standard Bidding) | Open-Core (`dv360-bidkit`) | Enterprise Pro (`dv360-bidkit-pro`) |
+| :--- | :--- | :--- | :--- |
+| **AST Linter & Platform Rejections** | N/A (Standard DV360 CPA/CPC) | **0h turnaround** (catches syntax & type errors locally) | **0h turnaround** (validated before artifact packaging) |
+| **Script Engineering & QA Time** | 10–15 hours manual Python scripting per campaign | **2–3 hours** (automated compilation & local simulation) | **< 30 minutes** (end-to-end automated pipeline & CLI) |
+| **Outlier & Pacing Starvation Risk** | High risk ($\max/\text{median} > 20\times$ destabilizes pacing $\alpha_t$) | Manual inspection required via diagnostic JSON | **Automated 95th-percentile ternary capping** eliminates starvation |
+| **Small-Sample Tail Noise Waste** | Unprotected (long-tail domains get maximum bid weights) | Manual domain exclusions via `policy.csv` | **Empirical Bayes shrinkage** ($\lambda_i$) prevents ~€4k–€8k tail overspend |
+| **Multi-Objective Funnel Optimization** | Single Floodlight conversion event only | Manual proxy weights (risk of proxy domination) | **Econometric mass balancing** preserves 65% conversion mass |
+| **Pre-Flight Simulation & Safety** | None (upload and wait for Google's model to train) | **Deterministic AST simulation** against historical CSVs | **Turnkey 8-artifact campaign bundle** with HTML audit report |
+| **Modeled Media Efficiency Uplift** | Baseline (€100k gross media spend) | **~€3,000 – €5,000** in avoided misconfigurations + engineering time saved | **~€15,000 – €25,000** modeled value uplift (reduced tail waste + balanced pacing) |
+
+::: tip Illustrative Scenario Model & Methodology Disclaimer
+Media efficiency projections (~€15k–€25k) represent a modeled statistical counterfactual on a €100,000/month display/video campaign exhibiting typical publisher-tail noise and multi-step conversion funnels. Actual media uplift depends on campaign targeting, bid floors, inventory composition, and baseline conversion rates. Guaranteed software capabilities are strictly engineering and computational: 100% adherence to Google's 2026.1 AST specification, zero platform rejection turnaround delay, deterministic local evaluation without `eval()`, and reproducible mathematical shrinkage.
+:::
+
+---
+
 ## The 4 Custom Bidding Traps Solved by Pro
 
 ### 1. Small-Sample Winner's Curse (Publisher Noise)

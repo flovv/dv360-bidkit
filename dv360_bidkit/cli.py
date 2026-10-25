@@ -173,18 +173,27 @@ def compile_cmd(
     rules: str = typer.Option(..., "--rules", "-r", help="Path to RuleSet JSON file"),
     policy: str | None = typer.Option(None, "--policy", "-p", help="Optional InventoryPolicy CSV/JSON file"),
     out: str = typer.Option("script.py", "--out", "-o", help="Output path for compiled script"),
+    json_out: bool = typer.Option(False, "--json", help="Output machine-readable JSON to stdout"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format: 'text' or 'json'"),
 ) -> None:
     """Compiles a RuleSet into a production DV360 Custom Bidding script."""
+    is_json = json_out or format == "json"
     rules_path = Path(rules)
     if not rules_path.exists():
-        console.print(f"[red]Error: Rules file '{rules}' not found.[/red]")
+        if is_json:
+            sys.stdout.write(json.dumps({"status": "error", "message": f"Rules file '{rules}' not found."}, indent=2) + "\n")
+        else:
+            console.print(f"[red]Error: Rules file '{rules}' not found.[/red]")
         sys.exit(2)
 
     try:
         rules_dict = json.loads(rules_path.read_text(encoding="utf-8"))
         ruleset = RuleSet(**rules_dict)
     except Exception as exc:
-        console.print(f"[red]Error parsing rules: {exc}[/red]")
+        if is_json:
+            sys.stdout.write(json.dumps({"status": "error", "message": f"Error parsing rules: {exc}"}, indent=2) + "\n")
+        else:
+            console.print(f"[red]Error parsing rules: {exc}[/red]")
         sys.exit(2)
 
     inv_policy = None
@@ -192,24 +201,49 @@ def compile_cmd(
         try:
             inv_policy = load_inventory_policy(policy)
         except Exception as exc:
-            console.print(f"[red]Error loading inventory policy: {exc}[/red]")
+            if is_json:
+                sys.stdout.write(json.dumps({"status": "error", "message": f"Error loading inventory policy: {exc}"}, indent=2) + "\n")
+            else:
+                console.print(f"[red]Error loading inventory policy: {exc}[/red]")
             sys.exit(2)
 
     result = compile_script(ruleset, policy=inv_policy)
     out_path = Path(out)
 
     if not result.budgets_passed:
-        console.print("[red]Compilation failed budget and validation checks:[/red]")
-        for diag in result.diagnostics:
-            if diag.severity == DiagnosticSeverity.ERROR:
-                console.print(f"[red]  ERROR: [{diag.code}] {diag.message}[/red]")
+        if is_json:
+            payload = {
+                "status": "error",
+                "budgets_passed": False,
+                "rule_count": result.rule_count,
+                "ast_nodes": result.ast_nodes,
+                "byte_count": result.byte_count,
+                "diagnostics": [diag.model_dump() for diag in result.diagnostics],
+            }
+            sys.stdout.write(json.dumps(payload, indent=2) + "\n")
+        else:
+            console.print("[red]Compilation failed budget and validation checks:[/red]")
+            for diag in result.diagnostics:
+                if diag.severity == DiagnosticSeverity.ERROR:
+                    console.print(f"[red]  ERROR: [{diag.code}] {diag.message}[/red]")
         sys.exit(1)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(result.script_code, encoding="utf-8")
 
-    console.print(f"[green]✓ Compiled script written to: {out}[/green]")
-    console.print(f"  Rules: {result.rule_count} | AST nodes: {result.ast_nodes} | Size: {result.byte_count} bytes")
+    if is_json:
+        payload = {
+            "status": "success",
+            "script_path": str(out_path),
+            "rule_count": result.rule_count,
+            "ast_nodes": result.ast_nodes,
+            "byte_count": result.byte_count,
+            "budgets_passed": result.budgets_passed,
+        }
+        sys.stdout.write(json.dumps(payload, indent=2) + "\n")
+    else:
+        console.print(f"[green]✓ Compiled script written to: {out}[/green]")
+        console.print(f"  Rules: {result.rule_count} | AST nodes: {result.ast_nodes} | Size: {result.byte_count} bytes")
 
 
 @app.command("evaluate")
@@ -218,14 +252,20 @@ def evaluate_cmd(
     report: str = typer.Option(..., "--report", "-r", help="Path to report CSV"),
     mapping: str = typer.Option(..., "--mapping", "-m", help="Path to mapping JSON"),
     out: str = typer.Option("diagnostics.json", "--out", "-o", help="Output path for evaluation diagnostics JSON"),
+    json_out: bool = typer.Option(False, "--json", help="Output machine-readable JSON to stdout"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format: 'text' or 'json'"),
 ) -> None:
     """Evaluates a script against historical report data."""
+    is_json = json_out or format == "json"
     script_path = Path(script)
     report_path = Path(report)
     mapping_path = Path(mapping)
 
     if not script_path.exists() or not report_path.exists() or not mapping_path.exists():
-        console.print("[red]Error: One or more input files do not exist.[/red]")
+        if is_json:
+            sys.stdout.write(json.dumps({"status": "error", "message": "One or more input files do not exist."}, indent=2) + "\n")
+        else:
+            console.print("[red]Error: One or more input files do not exist.[/red]")
         sys.exit(2)
 
     try:
@@ -233,7 +273,10 @@ def evaluate_cmd(
         rep_mapping = ReportMapping(**mapping_dict)
         report_data = load_report(report_path, mapping=rep_mapping)
     except Exception as exc:
-        console.print(f"[red]Error loading data/mapping: {exc}[/red]")
+        if is_json:
+            sys.stdout.write(json.dumps({"status": "error", "message": f"Error loading data/mapping: {exc}"}, indent=2) + "\n")
+        else:
+            console.print(f"[red]Error loading data/mapping: {exc}[/red]")
         sys.exit(2)
 
     code = script_path.read_text(encoding="utf-8")
@@ -242,6 +285,10 @@ def evaluate_cmd(
     out_path = Path(out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(eval_report.model_dump(), indent=2), encoding="utf-8")
+
+    if is_json:
+        sys.stdout.write(json.dumps(eval_report.model_dump(), indent=2) + "\n")
+        return
 
     m = eval_report.metrics
     r = eval_report.readiness

@@ -85,6 +85,9 @@ class ReportData(BaseModel):
 class InventoryEntityType(str, Enum):
     DOMAIN = "domain"
     SITE_ID = "site_id"
+    APP_ID = "app_id"
+    APP_BUNDLE = "app_bundle"
+    STORE_URL = "store_url"
 
 
 class InventoryAction(str, Enum):
@@ -100,6 +103,7 @@ class InventoryPolicyEntry(BaseModel):
     action: InventoryAction
     source: str
     as_of: str
+    namespace: str = "domain"
     label: str | None = None
     expiry: str | None = None
     score: float | None = None
@@ -112,6 +116,10 @@ class InventoryPolicyConfig(BaseModel):
         description="If True, boundary-aware parent domain matching is enabled (e.g. *.example.com matches example.com)"
     )
     strip_www: bool = Field(default=True, description="Strip 'www.' prefix when normalizing domain")
+    web_only_domains: bool = Field(
+        default=False,
+        description="If True, domain exclusions/overrides are restricted to web environments (environment in [10, 11]) to prevent false blocks on CTV (device_type == 4) and In-App (environment == 12)."
+    )
     unknown_action: str = Field(
         default="neutral_fallback",
         description="'neutral_fallback' lets ordinary rules score unknown inventory; 'allowlist_only' scores unmatched as unmatched_score"

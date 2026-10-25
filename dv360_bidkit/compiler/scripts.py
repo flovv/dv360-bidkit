@@ -104,10 +104,13 @@ def compile_script(
     # Precedence (Spec Section 5.1): EXCLUDE_FROM_TRAINING > SET_SCORE > ordinary rules
     exclusion_domains: list[str] = []
     exclusion_site_ids: list[str] = []
+    exclusion_app_ids: list[str] = []
     domain_overrides: dict[float, list[str]] = {}
     site_id_overrides: dict[float, list[str]] = {}
+    app_id_overrides: dict[float, list[str]] = {}
     allowlist_domains: set[str] = set()
     allowlist_site_ids: set[str] = set()
+    allowlist_app_ids: set[str] = set()
     override_count = 0
 
     policy_diagnostics: list[Diagnostic] = []
@@ -132,6 +135,8 @@ def compile_script(
             if entry.action == InventoryAction.EXCLUDE_FROM_TRAINING:
                 if entry.entity_type == InventoryEntityType.SITE_ID:
                     exclusion_site_ids.append(entry.entity_value)
+                elif entry.entity_type in (InventoryEntityType.APP_ID, InventoryEntityType.APP_BUNDLE):
+                    exclusion_app_ids.append(entry.entity_value)
                 else:
                     exclusion_domains.append(entry.entity_value)
             elif entry.action == InventoryAction.SET_SCORE and entry.score is not None:
@@ -140,21 +145,30 @@ def compile_script(
                 if entry.entity_type == InventoryEntityType.SITE_ID:
                     site_id_overrides.setdefault(override_score, []).append(entry.entity_value)
                     allowlist_site_ids.add(entry.entity_value)
+                elif entry.entity_type in (InventoryEntityType.APP_ID, InventoryEntityType.APP_BUNDLE):
+                    app_id_overrides.setdefault(override_score, []).append(entry.entity_value)
+                    allowlist_app_ids.add(entry.entity_value)
                 else:
                     domain_overrides.setdefault(override_score, []).append(entry.entity_value)
                     allowlist_domains.add(entry.entity_value)
             elif entry.action == InventoryAction.ANNOTATE:
                 if entry.entity_type == InventoryEntityType.SITE_ID:
                     allowlist_site_ids.add(entry.entity_value)
+                elif entry.entity_type in (InventoryEntityType.APP_ID, InventoryEntityType.APP_BUNDLE):
+                    allowlist_app_ids.add(entry.entity_value)
                 else:
                     allowlist_domains.add(entry.entity_value)
 
     excl_domain_set = set(exclusion_domains)
     excl_site_set = set(exclusion_site_ids)
+    excl_app_set = set(exclusion_app_ids)
 
     if exclusion_domains:
         exclusions_repr = _format_entity_list(exclusion_domains)
-        lines.append(f"if domain in {exclusions_repr}:")
+        if policy is not None and policy.config.web_only_domains:
+            lines.append(f"if environment in [10, 11] and domain in {exclusions_repr}:")
+        else:
+            lines.append(f"if domain in {exclusions_repr}:")
         lines.append("    return None  # Excluded from model training by inventory policy")
         lines.append("")
 
@@ -164,13 +178,22 @@ def compile_script(
         lines.append("    return None  # Excluded site_id from model training by inventory policy")
         lines.append("")
 
+    if exclusion_app_ids:
+        app_excl_repr = _format_entity_list(exclusion_app_ids)
+        lines.append(f"if app_id in {app_excl_repr}:")
+        lines.append("    return None  # Excluded app_id from model training by inventory policy")
+        lines.append("")
+
     # Emit top-level SET_SCORE overrides so matched entities replace the final score
     # rather than adding a bonus in sum_aggregate mode (Spec Section 5.1)
     for override_score in sorted(domain_overrides.keys(), reverse=True):
         active_doms = [d for d in domain_overrides[override_score] if d not in excl_domain_set]
         if active_doms:
             dom_repr = _format_entity_list(active_doms)
-            lines.append(f"if domain in {dom_repr}:")
+            if policy is not None and policy.config.web_only_domains:
+                lines.append(f"if environment in [10, 11] and domain in {dom_repr}:")
+            else:
+                lines.append(f"if domain in {dom_repr}:")
             lines.append(f"    return {override_score:.4f}  # Policy score override")
             lines.append("")
 
@@ -180,6 +203,14 @@ def compile_script(
             site_repr = _format_entity_list(active_sites, as_int_if_numeric=True)
             lines.append(f"if site_id in {site_repr}:")
             lines.append(f"    return {override_score:.4f}  # Policy site_id score override")
+            lines.append("")
+
+    for override_score in sorted(app_id_overrides.keys(), reverse=True):
+        active_apps = [a for a in app_id_overrides[override_score] if a not in excl_app_set]
+        if active_apps:
+            app_repr = _format_entity_list(active_apps)
+            lines.append(f"if app_id in {app_repr}:")
+            lines.append(f"    return {override_score:.4f}  # Policy app_id score override")
             lines.append("")
 
     # Handle allowlist_only mode if configured on InventoryPolicy

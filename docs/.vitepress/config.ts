@@ -31,6 +31,7 @@ export default defineConfig({
     },
     nav: [
       { text: 'Documentation', link: '/quickstart' },
+      { text: 'A/B Testing Playbook', link: '/ab_testing_playbook' },
       { text: 'Research Foundations', link: '/algorithmic_research_foundations' },
       { text: 'Pro Commercial', link: '/pro' },
       { text: 'Agent Skill', link: '/agent_skill' },
@@ -43,6 +44,7 @@ export default defineConfig({
         items: [
           { text: 'Overview & Architecture', link: '/' },
           { text: 'Quickstart & CLI Guide', link: '/quickstart' },
+          { text: 'A/B Testing Playbook', link: '/ab_testing_playbook' },
           { text: 'Algorithmic Foundations', link: '/algorithmic_research_foundations' },
         ]
       },
