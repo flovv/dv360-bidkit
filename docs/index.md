@@ -1,3 +1,42 @@
+---
+layout: home
+
+hero:
+  name: "DV360 BidKit"
+  text: "Production Custom Bidding DSL Engine"
+  tagline: "Turn DV360 report data into verified, high-performance custom bidding algorithms without guesswork, AST syntax errors, or platform rejections."
+  actions:
+    - theme: brand
+      text: Quickstart Guide
+      link: /quickstart
+    - theme: alt
+      text: Get Pro License
+      link: https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT
+    - theme: alt
+      text: GitHub
+      link: https://github.com/flovv/dv360-bidkit
+
+features:
+  - icon: 🛡️
+    title: Google 2026.1 AST Linter
+    details: Complete AST-based parser validating functions, dimension codes, return structures, and deprecation checks before platform upload.
+  - icon: ⚡
+    title: Pre-Flight Simulator
+    details: Deterministic local evaluation against historical report CSVs without eval() or exec(), computing score distributions and positive rates.
+  - icon: 📊
+    title: Google S2 Readiness Checks
+    details: Validates 500 advertiser / 50 line-item positive thresholds, max/median ratios (<20x), and Gini inequality to prevent pacing starvation.
+  - icon: 🎯
+    title: Deterministic RuleSet Compiler
+    details: Compiles customer business rules, ternary outlier caps, and inventory policies into compliant, budget-bounded Python DSL.
+  - icon: 🤖
+    title: Agent-Ready AI Skill
+    details: Native dv360-custom-bidding skill empowering Cursor, Claude Code, Antigravity, and Copilot to write bug-free bidding scripts.
+  - icon: 💎
+    title: Pro Commercial Extensions
+    details: Empirical Bayes Active View shrinkage, client funnel mass-balancing, Pareto trade-off scenario grids, and turnkey campaign bundles.
+---
+
 # DV360 BidKit Documentation
 
 **DV360 Custom Bidding DSL Linter, Pre-Flight Simulator, and Rule Compiler**

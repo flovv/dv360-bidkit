@@ -30,9 +30,10 @@ export default defineConfig({
       provider: 'local'
     },
     nav: [
-      { text: 'Documentation', link: '/' },
+      { text: 'Documentation', link: '/quickstart' },
       { text: 'Research Foundations', link: '/algorithmic_research_foundations' },
-      { text: 'LLM Guide', link: '/llms.txt' },
+      { text: 'Pro Commercial', link: '/pro' },
+      { text: 'Agent Skill', link: '/agent_skill' },
       { text: 'Get Pro License', link: 'https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT' },
       { text: 'GitHub', link: 'https://github.com/flovv/dv360-bidkit' }
     ],
@@ -41,14 +42,20 @@ export default defineConfig({
         text: 'Getting Started',
         items: [
           { text: 'Overview & Architecture', link: '/' },
+          { text: 'Quickstart & CLI Guide', link: '/quickstart' },
           { text: 'Algorithmic Foundations', link: '/algorithmic_research_foundations' },
         ]
       },
       {
-        text: 'AI & LLM Integration',
+        text: 'Commercial Extension',
         items: [
-          { text: 'llms.txt (API Summary)', link: '/llms.txt' },
-          { text: 'llms-full.txt (Full Context)', link: '/llms-full.txt' },
+          { text: 'DV360 BidKit Pro & Polar', link: '/pro' },
+        ]
+      },
+      {
+        text: 'AI & Developer Integration',
+        items: [
+          { text: 'Agent Skill (dv360-custom-bidding)', link: '/agent_skill' },
         ]
       }
     ],
