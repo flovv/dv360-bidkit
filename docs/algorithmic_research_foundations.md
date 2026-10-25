@@ -51,27 +51,33 @@ This document outlines four foundational academic papers across automated biddin
 
 ---
 
-## 3. Ad Viewability & Attention Exposure Modeling
+## 3. Attention Spillovers, Dwell Time & Exposure Modeling
 
-* **Paper:** *Viewability Prediction for Online Display Ads*
-* **Authors:** Chong Wang, Achir Kalra, Cristian Borcea, Yi Chen
-* **Venue / Reference:** *ACM CIKM '15* (Proceedings of the 24th ACM International Conference on Information and Knowledge Management)
+* **Paper:** *Attention Spillovers from News to Ads*
+* **Authors:** Andrey Simonov & Tommaso Valletti (Columbia Business School & Imperial College London, 2024)
+* **Venue / Reference:** *Working Papers / WOPA 2024*
+* **Complementary Reference:** *Viewability Prediction for Online Display Ads* (Wang et al., *ACM CIKM '15*) & Lumen Research Normative Eye-Tracking Benchmarks
 
 ### Core Theoretical Insights
-1. **Regime Differences Across Devices and Formats:**  
-   Wang et al. demonstrated that ad viewability is not governed by a single universal process. On desktop web, viewability is primarily determined by page layout, viewport coordinates, and ad fold position. On mobile, it is dominated by user scroll velocity and viewport dwell times. Connected TV (CTV) operates under a completely distinct application-based model where web domain and viewport geometry do not apply.
-2. **Diminishing Marginal Utility of Continuous Exposure:**  
-   Eye-tracking and dwell-time research reveals that user attention decays exponentially over time. Valuing ad exposure linearly against raw seconds on screen rewards accidental background tabs and slow-loading scripts. Quality valuation should follow a concave utility curve:
-   $$U(t) = 1 - e^{-\gamma \cdot t}$$
-   where $\gamma$ is the attention decay rate.
+1. **Dwell Time as the Causal Driver of Advertising Outcomes:**  
+   Simonov & Valletti demonstrate with high-frequency eye-tracking data across 1,500+ participants and 17,000+ ad exposures that ad dwell time directly causes recall and consideration:
+   * **+1 second of attentive dwell** increases brand recall by **+3.4 percentage points** ($p < 0.001$) and purchase intent by **+0.7 percentage points** ($p = 0.02$).
+   * Mere MRC viewability (50% pixels on screen for 1 second) is insufficient: only ~8% to 15% of viewable impressions receive active human gaze (Lumen Research).
+2. **Positive Attention Spillover ($\gamma$ elasticity):**  
+   High-engagement editorial content creates positive visual spillovers: readers spending longer on deep editorial or hard news content allocate more visual dwell to accompanying ads ($\gamma = 0.011$ to $0.023$). Conversely, high-bounce or Made-For-Advertising (MFA) content creates negative visual engagement.
+3. **The Inefficiency of Keyword Blocklists:**  
+   Blunt keyword blocklists that avoid hard news remove up to **40%** of available high-attention programmatic inventory, driving ad spend into low-dwell clickbait.
+4. **Diminishing Marginal Utility of Continuous Exposure:**  
+   Attention utility exhibits concave saturation. Valuing ad exposure linearly against raw seconds rewards accidental background tabs. Quality valuation follows a concave exponential curve:
+   $$U(t) = 1 - e^{-\lambda \cdot t}$$
 
 ### Concrete Algorithmic Applications in BidKit
+* **Open Attention Prior Tables (Open-Core):**  
+   `dv360-bidkit` provides open normative tables mapping format APM (Attentive Seconds Per Mille), fold position, and device categories into DV360 Custom Bidding score multipliers without third-party vendor fees.
+* **Content Spillover & MFA Discounting (Pro Tier):**  
+   `dv360-bidkit-pro` models editorial dwell elasticities ($\gamma$) and applies automated discounting to high-clutter MFA domains.
 * **Disallowed CTV Domain Ingestion:**  
    `dv360-bidkit.linter` flags scripts evaluating web `domain` alongside Connected TV (`device_type == 4`), preventing invalid rule application since CTV apps report bundle IDs rather than website hostnames.
-* **Separate Device Baselines:**  
-   The calibration pipeline validates device categories and allows segmenting baselines across desktop vs. mobile web environments.
-* **Non-Linear Exposure Transformation:**  
-   Future continuous Active View profiles in Pro apply concave exponential saturation rather than linear dwell-time multipliers.
 
 ---
 
