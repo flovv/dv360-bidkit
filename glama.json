@@ -1,0 +1,13 @@
+{
+  "$schema": "https://glama.ai/mcp/schema.json",
+  "name": "dv360-bidkit",
+  "displayName": "DV360 BidKit",
+  "description": "Google Display & Video 360 (DV360) custom bidding linter, simulator, and empirical attention dwell optimizer.",
+  "website": "https://flovv.github.io/software/",
+  "repository": "https://github.com/flovv/dv360-bidkit",
+  "connection": {
+    "type": "sse",
+    "url": "https://dv360-bidkit-mcp.teschner.workers.dev/sse"
+  },
+  "tags": ["adtech", "marketing", "dv360", "attention-metrics", "data-science"]
+}
