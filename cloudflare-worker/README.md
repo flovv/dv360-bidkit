@@ -30,6 +30,13 @@ Wrangler will output your live URL:
 
 ---
 
+## Live Deployment
+
+* **Live Cloudflare Edge Endpoint:** [`https://dv360-bidkit-mcp.teschner.workers.dev`](https://dv360-bidkit-mcp.teschner.workers.dev)
+* **Live SSE Endpoint:** `https://dv360-bidkit-mcp.teschner.workers.dev/sse`
+
+---
+
 ## Connecting to Claude Desktop
 
 Add this snippet to your `claude_desktop_config.json`:
@@ -38,7 +45,7 @@ Add this snippet to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "dv360-bidkit": {
-      "url": "https://dv360-bidkit-mcp.<your-subdomain>.workers.dev/sse"
+      "url": "https://dv360-bidkit-mcp.teschner.workers.dev/sse"
     }
   }
 }

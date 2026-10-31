@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Polar Pro](https://img.shields.io/badge/Polar.sh-Get%20Pro%20License-blueviolet)](https://buy.polar.sh/polar_cl_jeD6EDIDtJxQJiCWKF1dfQ9vWHUomQUV7XxQD3Yj7bT)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-dv360--custom--bidding-purple)](https://skills.sh/flovv/dv360-bidkit/dv360-custom-bidding)
+[![MCP Server](https://img.shields.io/badge/MCP%20Server-Cloudflare%20Live-orange)](https://dv360-bidkit-mcp.teschner.workers.dev)
 
 **Turn DV360 report data into verified, high-performance custom bidding algorithms without guesswork, AST syntax errors, or platform rejections.**
 
@@ -277,6 +278,44 @@ Install directly via [skills.sh](https://skills.sh/flovv/dv360-bidkit/dv360-cust
 ```bash
 npx skills add flovv/dv360-bidkit
 ```
+
+---
+
+## 🔌 Model Context Protocol (MCP) Server (Zero Python Required)
+
+`dv360-bidkit` provides a production MCP server running globally on Cloudflare Workers edge. Media buyers, non-technical analysts, and programmatic teams can interact with BidKit directly inside **Claude Desktop**, **Cursor**, or web agents with zero local setup:
+
+### Connect to Claude Desktop (1 Click)
+
+Add the live SSE endpoint to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "dv360-bidkit": {
+      "url": "https://dv360-bidkit-mcp.teschner.workers.dev/sse"
+    }
+  }
+}
+```
+
+### Local stdio MCP Server (Developers)
+
+For local execution without cloud networks, launch via Python or `uvx`:
+
+```bash
+# Using CLI:
+bidkit mcp
+
+# Using uvx:
+uvx dv360-bidkit mcp
+```
+
+### 3 Exposed MCP Tools:
+* `validate_custom_bidding_script`: Verifies Google 2026 DSL compliance, AST syntax, and 65k character budgets.
+* `get_attention_benchmarks`: Retrieves empirical dwell multipliers and APM norms (Simonov & Valletti 2024 / Lumen).
+* `compile_custom_bidding_script`: Compiles structured rules into production Google DV360 Python scripts.
+
 
 ---
 

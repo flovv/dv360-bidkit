@@ -11,7 +11,7 @@ repository: https://github.com/flovv/dv360-bidkit
 homepage: https://flovv.github.io/software/
 command:
   type: sse
-  url: https://dv360-bidkit-mcp.workers.dev/sse
+  url: https://dv360-bidkit-mcp.teschner.workers.dev/sse
 tools:
   - name: validate_custom_bidding_script
     description: Lint and validate DV360 custom bidding script against Google 2026 DSL specification.
