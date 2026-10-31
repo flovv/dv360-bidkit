@@ -1,0 +1,21 @@
+# Smithery configuration for dv360-bidkit
+name: dv360-bidkit
+title: DV360 BidKit Custom Bidding & Attention Optimizer
+description: Lint, validate, and compile Google Display & Video 360 (DV360) custom bidding scripts with empirical attention dwell priors (Simonov & Valletti 2024 / Lumen norms).
+version: 0.1.1
+categories:
+  - marketing
+  - adtech
+  - data-science
+repository: https://github.com/flovv/dv360-bidkit
+homepage: https://flovv.github.io/software/
+command:
+  type: sse
+  url: https://dv360-bidkit-mcp.workers.dev/sse
+tools:
+  - name: validate_custom_bidding_script
+    description: Lint and validate DV360 custom bidding script against Google 2026 DSL specification.
+  - name: get_attention_benchmarks
+    description: Retrieve empirical attention dwell multipliers and format APM benchmarks.
+  - name: compile_custom_bidding_script
+    description: Compile structured rules into production Google DV360 Python script.

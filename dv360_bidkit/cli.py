@@ -339,3 +339,16 @@ def report_cmd(
     except Exception as exc:
         console.print(f"[red]Error rendering report: {exc}[/red]")
         sys.exit(2)
+
+
+@app.command("mcp")
+def mcp_cmd() -> None:
+    """Launches the Model Context Protocol (MCP) server over stdio for Claude Desktop and Cursor."""
+    from dv360_bidkit.mcp import run_stdio_server
+    run_stdio_server()
+
+
+if __name__ == "__main__":
+    app()
+
+

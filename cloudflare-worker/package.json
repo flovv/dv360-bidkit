@@ -1,0 +1,16 @@
+{
+  "name": "dv360-bidkit-mcp",
+  "version": "0.1.1",
+  "description": "Cloudflare Worker MCP Server for DV360 Custom Bidding and Attention Dwell Optimization",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241022.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.84.0"
+  }
+}
