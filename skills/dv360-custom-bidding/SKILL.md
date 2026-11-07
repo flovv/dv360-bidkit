@@ -1,20 +1,20 @@
 ---
 name: dv360-custom-bidding
 description: Validate, lint, simulate, calibrate, and compile DV360 Custom Bidding algorithms and scripts using dv360-bidkit and dv360-bidkit-pro.
-version: 0.1.1
+version: 0.1.2
 author: flovv
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [dv360, custom-bidding, display-video-360, rtb, programmatic, viewability, empirical-bayes, value-based-bidding, floodlight]
+    tags: [dv360, custom-bidding, display-video-360, rtb, programmatic, viewability, empirical-bayes, value-based-bidding, floodlight, machine-learning, scikit-learn, decision-tree, ast-compiler]
     related_skills: []
 ---
 
 # DV360 Custom Bidding Skill (`dv360-custom-bidding`)
 
 Validates, simulates, calibrates, and compiles Google Display & Video 360 (DV360) Custom Bidding scripts and multi-objective funnel algorithms:
-- **`dv360-bidkit` (Open-Core):** Fast AST-based linter for Google Custom Bidding grammar, 2026 signal registry verification, pre-flight simulation without `eval()`/`exec()`, Google S2 readiness checks (500 advertiser / 50 line item positives), deterministic RuleSet compilation, and customer inventory policy management.
+- **`dv360-bidkit` (Open-Core):** Fast AST-based linter for Google Custom Bidding grammar, 2026 signal registry verification, Scikit-Learn Decision Tree compiler (`bidkit.from_sklearn`), pre-flight simulation without `eval()`/`exec()`, Google S2 readiness checks (500 advertiser / 50 line item positives), deterministic RuleSet compilation, and customer inventory policy management.
 - **`dv360-bidkit-pro` (Commercial):** Display Active View quality proxy fitting via automated Empirical Bayes shrinkage, client funnel evaluation and mass-balanced optimal weighting (`bidkit-pro weights`), multi-objective Pareto trade-off scenario grids, customer inventory impact audits, and complete production campaign bundle export (`script.py`, `rules.json`, `configuration.json`, `calibration.csv`, `diagnostics.json`, `audit.html`, `manifest.json`).
 
 > [!IMPORTANT]
@@ -52,6 +52,7 @@ Pro requires a commercial license key or local dev bypass:
 | **Compile Rules** | `bidkit compile --rules <rules.json> [--policy <policy.json>] --out <script.py>` |
 | **Evaluate Script** | `bidkit evaluate <script.py> --report <report.csv> --mapping <mapping.json> --out <diagnostics.json>` |
 | **Render HTML Report** | `bidkit report <diagnostics.json> --out <audit.html>` |
+| **Demo ML Tree Compiler** | `bidkit tree-demo [--max-depth <int>] [--style conditional\|aggregate] [--out <script.py>]` |
 | **Authenticate Pro** | `bidkit-pro auth [--key <key>]` |
 | **Audit & Calibrate Weights** | `bidkit-pro weights --report <report.csv> --mapping <mapping.json> --macro "<col>" --proxies "<col1,col2>" --out <weights.json>` |
 | **Build Campaign Bundle** | `bidkit-pro build --report <report.csv> --mapping <mapping.json> --config <campaign.json> [--weights <weights.json>] [--policy <policy.json>] --out-dir <bundle_dir>` |
@@ -237,6 +238,31 @@ bundle = build_campaign_bundle(
 export_campaign_bundle(bundle, output_dir="./output_bundle")
 ```
 
+### Recipe 5: Compiling Scikit-Learn Trees into DV360 Custom Bidding DSL (`from_sklearn`)
+Translate trained Python ML models (predicting conversions, viewability, or dwell time) directly into production-grade Google DV360 Custom Bidding scripts:
+```python
+from sklearn.tree import DecisionTreeClassifier
+import dv360_bidkit as bidkit
+
+# 1. Train DecisionTree on historical impression features
+features = ["device_type", "environment", "hour_of_day", "day_of_week"]
+clf = DecisionTreeClassifier(max_depth=3, min_samples_leaf=50)
+clf.fit(X_train, y_train)
+
+# 2. Compile directly into Google DV360 Custom Bidding DSL:
+dv360_script = bidkit.from_sklearn(
+    clf,
+    feature_names=features,
+    output_style="conditional",  # or "aggregate" for first_match_aggregate
+    scale_factor=100.0,          # scales 0.0-1.0 probability to 0-100 score
+    validate=True,               # Strikte Google 64 KB Budget- und AST-Linter-Validierung
+)
+
+print(dv360_script)
+```
+*Note on Integer Signals:* Discrete DV360 dimensions (`device_type`, `environment`, `hour_of_day`, `day_of_week`) are automatically converted from float split thresholds (e.g. `device_type <= 1.5`) into clean discrete integer comparisons (`device_type <= 1` vs `device_type >= 2`).
+*Note on Ensembles:* Random Forests or Gradient Boosted Trees cannot run directly in DV360's sandbox; pass an individual representative estimator (`rf.estimators_[0]`) or train a single DecisionTreeClassifier.
+
 ---
 
 ## Best Practices & Anti-Patterns
@@ -257,3 +283,5 @@ export_campaign_bundle(bundle, output_dir="./output_bundle")
    - Note: The `domain` signal is only valid in web environments (`environment in [10, 11]`); mobile apps (`environment == 12`) and CTV evaluate `app_id` / bundle IDs.
 7. **Empirical Funnel Balancing vs Platform Constraints:**
    - The default `target_macro_mass_share = 0.65` (65% macro / 35% proxies) is an econometric mass-balancing recommendation to prevent gradient starvation; it is not a hardcoded DV360 platform constraint. Traders can calibrate target shares between 0.50 and 0.85 based on client conversion density.
+8. **Machine Learning Model Deployments (`from_sklearn`):**
+   - DV360 only executes restricted Python DSL and does not load external packages or run ensemble trees. Keep tree depth bounded (`max_depth <= 4`) to stay comfortably within the 64 KB script budget, and always compile through `bidkit.from_sklearn()`.

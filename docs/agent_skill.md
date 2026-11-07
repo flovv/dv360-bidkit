@@ -46,6 +46,8 @@ When the skill is active, AI models are constrained by strict domain rules:
    The agent automatically enforces ternary caps (`(cap if val > cap else val)`) on revenue and duration signals at the 95th percentile to prevent pacing controller destabilization.
 5. **No Runtime Wildcard Subdomain Claims:**  
    The agent knows Google's scoring engine evaluates exact string equality and numeric ranges, and will not emit regex or dynamic `.endswith()` patterns in compiled scripts.
+6. **Machine Learning Model Translation (`from_sklearn`):**  
+   When data scientists ask to deploy Scikit-Learn predictive trees (predicting conversion, CTR, or dwell time) into DV360, the agent compiles them directly with `bidkit.from_sklearn(clf, feature_names=...)`, canonicalizes feature names to Google signals, handles discrete integer thresholds, and validates against Google's 64 KB limit.
 
 ---
 
@@ -53,6 +55,6 @@ When the skill is active, AI models are constrained by strict domain rules:
 
 Once the skill is installed, you can simply ask your AI coding assistant:
 
-> *"Analyze `client_q3_report.csv`, map the columns, check whether we have enough historical volume for Google S2 readiness, and compile a 3-tier viewability and Floodlight conversion bidding script."*
+> *"Train a DecisionTreeClassifier on our impression log features (`device_type`, `environment`, `hour_of_day`, `day_of_week`), compile it into Google DV360 Custom Bidding DSL with `bidkit.from_sklearn()`, and verify that it passes AST validation and stays under the 64 KB limit."*
 
-The agent will load the report using `ReportMapping`, simulate performance with `evaluate_script()`, diagnose readiness metrics, and output verified, production-ready DV360 DSL.
+The agent will fit the model, invoke `from_sklearn()`, verify platform compliance with `lint_script()`, and output production-ready DV360 DSL.
