@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from dv360_bidkit.compiler.scripts import compile_script
+from dv360_bidkit.compiler.sklearn import from_sklearn
 from dv360_bidkit.contracts.schemas import (
     DiagnosticSeverity,
     EvaluationReport,
@@ -339,6 +340,80 @@ def report_cmd(
     except Exception as exc:
         console.print(f"[red]Error rendering report: {exc}[/red]")
         sys.exit(2)
+
+
+@app.command("tree-demo")
+def tree_demo_cmd(
+    max_depth: int = typer.Option(3, "--max-depth", "-d", help="Max depth of the decision tree"),
+    style: str = typer.Option("conditional", "--style", "-s", help="Output style: 'conditional' or 'aggregate'"),
+    out: str | None = typer.Option(None, "--out", "-o", help="Optional output path to save script"),
+) -> None:
+    """Trains a DecisionTreeClassifier on synthetic impression logs and compiles it to DV360 DSL."""
+    try:
+        from sklearn.tree import DecisionTreeClassifier
+        import numpy as np
+    except ImportError:
+        console.print("[red]Error: scikit-learn is required. Install via `pip install scikit-learn`.[/red]")
+        sys.exit(2)
+
+    # Generate synthetic training impression dataset
+    rng = np.random.default_rng(42)
+    n_samples = 1500
+    device_type = rng.choice([0, 1, 2, 3], size=n_samples, p=[0.4, 0.05, 0.45, 0.1])
+    environment = rng.choice([10, 11], size=n_samples, p=[0.7, 0.3])
+    hour_of_day = rng.integers(0, 24, size=n_samples)
+    day_of_week = rng.integers(0, 7, size=n_samples)
+
+    X = np.column_stack([device_type, environment, hour_of_day, day_of_week])
+    feature_names = ["device_type", "environment", "hour_of_day", "day_of_week"]
+
+    # Conversion probability formula
+    logits = (
+        -2.5
+        + (device_type == 2) * 0.8
+        + (environment == 10) * 0.5
+        + (hour_of_day >= 18) * 0.6
+        + (day_of_week >= 5) * 0.7
+    )
+    probs = 1.0 / (1.0 + np.exp(-logits))
+    y = rng.binomial(1, probs)
+
+    clf = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=30, random_state=42)
+    clf.fit(X, y)
+
+    script = from_sklearn(
+        clf,
+        feature_names=feature_names,
+        output_style=style,  # type: ignore[arg-type]
+        scale_factor=100.0,
+        validate=True,
+    )
+
+    byte_len = len(script.encode("utf-8"))
+    table = Table(title="Scikit-Learn -> Google DV360 Custom Bidding DSL Compilation")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", justify="right", style="bold")
+    table.add_column("Platform Standard", style="dim")
+
+    table.add_row("Model Type", "DecisionTreeClassifier", "scikit-learn tree model")
+    table.add_row("Tree Max Depth", str(clf.get_depth()), "Tree depth")
+    table.add_row("Terminal Leaves", str(clf.get_n_leaves()), "Number of execution paths")
+    table.add_row("Script Size", f"{byte_len:,} bytes", "≤ 65,536 bytes (64 KB limit)")
+    table.add_row("Output Style", style, "conditional (if/else) or aggregate")
+    table.add_row("AST Validation", "[green]VALID (0 errors)[/green]", "Google Custom Bidding DSL compliant")
+
+    console.print(table)
+
+    from rich.syntax import Syntax
+    syntax = Syntax(script, "python", theme="monokai", line_numbers=True)
+    console.print("\n[bold]Compiled DV360 Script:[/bold]")
+    console.print(syntax)
+
+    if out:
+        out_p = Path(out)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        out_p.write_text(script, encoding="utf-8")
+        console.print(f"\n[green]✓ Script saved to: {out}[/green]")
 
 
 @app.command("mcp")

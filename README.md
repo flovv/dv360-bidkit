@@ -53,6 +53,47 @@ bidkit demo
 
 ---
 
+## The Python Data Science / ML Pipeline Bridge (`bidkit.from_sklearn`)
+
+Data scientists and quantitative programmatic traders train predictive models in Python (`scikit-learn`, `LightGBM`, `XGBoost`), but historically faced an impassable roadblock: **Google DV360 Custom Bidding only executes custom Python algorithms inside Google's sandboxed DSL** (no `import`, no external libraries, 64 KB size cap, restricted AST nodes).
+
+`dv360-bidkit` bridges this gap with `bidkit.from_sklearn()`. It translates fitted Scikit-Learn `DecisionTreeClassifier` and `DecisionTreeRegressor` estimators directly into 100% compliant Google DV360 Custom Bidding Python scripts.
+
+### 1-Minute Code Example:
+
+```python
+from sklearn.tree import DecisionTreeClassifier
+import dv360_bidkit as bidkit
+
+# 1. Train standard decision tree on impression/conversion logs
+features = ["device_type", "environment", "hour_of_day", "day_of_week"]
+clf = DecisionTreeClassifier(max_depth=3, min_samples_leaf=50)
+clf.fit(X_train, y_train)
+
+# 2. Compile directly into Google DV360 Custom Bidding DSL:
+dv360_script = bidkit.from_sklearn(
+    clf,
+    feature_names=features,
+    output_style="conditional",  # or "aggregate" for first_match_aggregate
+    scale_factor=100.0,
+    validate=True,               # Validates against Google's AST linter & 64 KB limit
+)
+
+print(dv360_script)
+```
+
+### Try it Instantly from the Terminal:
+
+```bash
+# Train a tree on synthetic impression logs and display syntax-highlighted DV360 DSL:
+bidkit tree-demo --max-depth 3 --style conditional
+
+# Or export Google aggregate format:
+bidkit tree-demo --style aggregate --out my_bidding_model.py
+```
+
+---
+
 ## The 4 Fatal Pitfalls of DV360 Custom Bidding
 
 DV360 custom bidding models replace Google's standard click/conversion heuristics with a custom machine-learning reward function. However, four subtle pitfalls routinely undermine live campaigns:
@@ -135,6 +176,9 @@ bidkit evaluate script.py --report report.csv --mapping mapping.json --out diagn
 
 # 5. Render evaluation diagnostics to an HTML visual report
 bidkit report diagnostics.json --out audit.html
+
+# 6. Train and compile a Scikit-Learn tree directly to DV360 DSL
+bidkit tree-demo --max-depth 3 --style conditional --out my_model.py
 ```
 
 ---

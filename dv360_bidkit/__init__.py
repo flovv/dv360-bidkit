@@ -1,6 +1,7 @@
 """dv360-bidkit: DV360 Custom Bidding DSL Linter, Pre-Flight Simulator, and Rule Compiler."""
 
 from dv360_bidkit.compiler.scripts import compile_script
+from dv360_bidkit.compiler.sklearn import from_sklearn
 from dv360_bidkit.contracts.exceptions import (
     BidkitError,
     BudgetExceededError,
@@ -50,11 +51,12 @@ from dv360_bidkit.io.reports import load_report
 from dv360_bidkit.linter.ast_validator import lint_script
 from dv360_bidkit.reporting.basic import render_report
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     # Primary API entry points
     "compile_script",
+    "from_sklearn",
     "evaluate_script",
     "extract_targeting_block_requests",
     "is_entry_expired",
