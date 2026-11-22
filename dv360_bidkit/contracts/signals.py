@@ -292,6 +292,79 @@ SIGNAL_REGISTRY: dict[str, SignalDefinition] = {
         notes="Whether the impression led to a user click.",
     ),
 
+
+    # Math functions
+    "log": SignalDefinition(
+        name="log",
+        kind=SignalKind.FUNCTION,
+        return_type="float",
+        min_args=1,
+        max_args=2,
+        param_types=["float", "float"],
+        status=SignalStatus.VERIFIED,
+        notes="Returns natural logarithm log(x) or log(x, base). Recommended for concave dwell weighting: log(capped_time + 1).",
+    ),
+
+    # Native Attention, Viewability, Video & Format Signals
+    "active_view_viewed": SignalDefinition(
+        name="active_view_viewed",
+        kind=SignalKind.DIMENSION,
+        return_type="bool",
+        status=SignalStatus.VERIFIED,
+        notes="Whether the impression met MRC Active View viewability criteria.",
+    ),
+    "active_view_measurable": SignalDefinition(
+        name="active_view_measurable",
+        kind=SignalKind.DIMENSION,
+        return_type="bool",
+        status=SignalStatus.VERIFIED,
+        notes="Whether Active View was able to measure viewability for the impression.",
+    ),
+    "time_on_screen_seconds": SignalDefinition(
+        name="time_on_screen_seconds",
+        kind=SignalKind.DIMENSION,
+        return_type="float",
+        status=SignalStatus.VERIFIED,
+        notes="Active View time on screen in seconds. Always cap (e.g. <= 20s) and apply concave log() decay to avoid sticky MFA clutter.",
+    ),
+    "completed_in_view_audible": SignalDefinition(
+        name="completed_in_view_audible",
+        kind=SignalKind.DIMENSION,
+        return_type="bool",
+        applicability=Applicability.VIDEO,
+        status=SignalStatus.VERIFIED,
+        notes="Whether a video ad completed while both in-view and audible.",
+    ),
+    "audio_completed": SignalDefinition(
+        name="audio_completed",
+        kind=SignalKind.DIMENSION,
+        return_type="bool",
+        applicability=Applicability.VIDEO,
+        status=SignalStatus.VERIFIED,
+        notes="Whether an audio ad played to completion.",
+    ),
+    "ad_position": SignalDefinition(
+        name="ad_position",
+        kind=SignalKind.DIMENSION,
+        return_type="int",
+        status=SignalStatus.VERIFIED,
+        notes="Ad fold position: 0=Unknown, 1=Above the fold, 2=Below the fold.",
+    ),
+    "creative_width": SignalDefinition(
+        name="creative_width",
+        kind=SignalKind.DIMENSION,
+        return_type="int",
+        status=SignalStatus.VERIFIED,
+        notes="Creative slot width in pixels (e.g. 300, 728, 970).",
+    ),
+    "creative_height": SignalDefinition(
+        name="creative_height",
+        kind=SignalKind.DIMENSION,
+        return_type="int",
+        status=SignalStatus.VERIFIED,
+        notes="Creative slot height in pixels (e.g. 250, 600, 50).",
+    ),
+
     # Deprecated signals
     "browser_id": SignalDefinition(
         name="browser_id",

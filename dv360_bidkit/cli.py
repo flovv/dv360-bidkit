@@ -21,6 +21,7 @@ from dv360_bidkit.contracts.schemas import (
     RuleSet,
 )
 from dv360_bidkit.evaluator.diagnostics import evaluate_script
+from dv360_bidkit.evaluator.economics import analyze_attention_fee_economics
 from dv360_bidkit.io.fixtures import (
     create_sample_inventory_policy,
     create_sample_mapping,
@@ -414,6 +415,71 @@ def tree_demo_cmd(
         out_p.parent.mkdir(parents=True, exist_ok=True)
         out_p.write_text(script, encoding="utf-8")
         console.print(f"\n[green]✓ Script saved to: {out}[/green]")
+
+
+
+@app.command("fee-check")
+def fee_check_cmd(
+    base_cpm: float = typer.Option(4.50, "--base-cpm", help="Baseline clearing CPM before attention steering"),
+    cpm_uplift: float = typer.Option(15.0, "--cpm-uplift", help="Expected clearing CPM uplift (%) on higher-attention supply"),
+    prebid_fee: float = typer.Option(0.0, "--prebid-fee", help="Fixed 3P pre-bid attention segment CPM surcharge (e.g. 0.25)"),
+    curation_fee: float = typer.Option(0.0, "--curation-fee", help="SSP curation take rate (%) (e.g. 11.0 median)"),
+    ai_fee: float = typer.Option(0.0, "--ai-fee", help="3P AI / custom bidding vendor fee (%) (e.g. 6.0)"),
+    agency_fee: float = typer.Option(0.0, "--agency-fee", help="Optional agency optimization fee (%)"),
+    budget: float = typer.Option(100000.0, "--budget", help="Fixed media budget for reach-contraction modeling"),
+    frequency: float = typer.Option(6.0, "--frequency", help="Average impressions per unique user"),
+    base_dwell: float = typer.Option(1.10, "--base-dwell", help="Baseline average visual dwell per impression (seconds)"),
+    target_dwell: float = typer.Option(2.40, "--target-dwell", help="Expected average visual dwell per impression (seconds)"),
+    currency: str = typer.Option("EUR", "--currency", help="Currency code (e.g. EUR, USD)"),
+    json_out: bool = typer.Option(False, "--json", help="Emit structured JSON output"),
+) -> None:
+    """Computes attention fee-stack break-even hurdles and Simonov et al. (2025) bounded quadratic recall reality checks."""
+    try:
+        res = analyze_attention_fee_economics(
+            base_cpm=base_cpm,
+            cpm_uplift_pct=cpm_uplift,
+            prebid_cpm_fee=prebid_fee,
+            curation_fee_pct=curation_fee,
+            ai_fee_pct=ai_fee,
+            agency_fee_pct=agency_fee,
+            budget=budget,
+            frequency=frequency,
+            base_dwell_seconds=base_dwell,
+            target_dwell_seconds=target_dwell,
+            currency=currency,
+        )
+    except ValueError as exc:
+        console.print(f"[bold red]Invalid input:[/bold red] {exc}")
+        raise typer.Exit(code=1)
+
+    if json_out:
+        print(json.dumps(res.model_dump(), indent=2))
+        return
+
+    verdict_style = {"VIABLE": "bold green", "MARGINAL": "bold yellow", "FEE_TRAP": "bold red"}[res.verdict]
+    table = Table(title=f"Attention Fee-Stack & Bounded Recall Check ({res.currency})")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right", style="bold")
+    table.add_column("Notes", style="dim")
+
+    table.add_row("Base CPM", f"{res.base_cpm:.2f} {res.currency}", "Baseline clearing price")
+    table.add_row("Clearing CPM (with uplift)", f"{res.clearing_cpm:.2f} {res.currency}", f"+{cpm_uplift:.1f}% supply price uplift")
+    table.add_row("All-In Effective CPM", f"{res.all_in_cpm:.2f} {res.currency}", f"+{res.total_fee_overhead_pct:.1f}% tech/curation fee overhead")
+    table.add_row("Break-Even Yield Lift Required", f"+{res.required_yield_lift_pct:.1f}%", "Per-impression lift needed just to break even")
+    table.add_row("Unique Reach Impact", f"{res.reach_change_pct:+.1f}%", f"{res.base_reach:,.0f} -> {res.target_reach:,.0f} users (freq {res.frequency:.1f})")
+    table.add_row(
+        "Cumulative User Dwell",
+        f"{res.base_cumulative_dwell_seconds:.1f}s -> {res.target_cumulative_dwell_seconds:.1f}s",
+        "SATURATED (>= 13.34s peak)" if res.hits_recall_saturation else "Below 13.34s saturation peak",
+    )
+    table.add_row("Bounded Recall Lift (Simonov 2025)", f"{res.bounded_recall_lift_pct:+.1f}%", f"{res.base_recalling_users:,.0f} -> {res.target_recalling_users:,.0f} recalling users")
+    table.add_row("Naive Linear Recall Projection", f"{res.naive_linear_recall_lift_pct:+.1f}%", "Ignores reach loss & quadratic saturation")
+    if res.linear_overstatement_ratio is not None:
+        table.add_row("Linear Overstatement Factor", f"{res.linear_overstatement_ratio:.2f}x", "How much linear math exaggerates real recall lift")
+    table.add_row("Economic Verdict", f"[{verdict_style}]{res.verdict}[/{verdict_style}]", "Fee-stack discipline assessment")
+
+    console.print(table)
+    console.print(Panel(res.recommendation, title="[bold]Recommendation[/bold]", border_style="blue"))
 
 
 @app.command("mcp")

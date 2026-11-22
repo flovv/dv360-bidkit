@@ -14,6 +14,7 @@ from dv360_bidkit import __version__
 from dv360_bidkit.compiler import compile_script
 from dv360_bidkit.contracts import RuleSet
 from dv360_bidkit.io import load_inventory_policy
+from dv360_bidkit.evaluator.economics import analyze_attention_fee_economics
 from dv360_bidkit.linter import lint_script
 
 # Empirical attention normative benchmarks (Simonov & Valletti 2024 / Lumen Research)
@@ -87,6 +88,27 @@ TOOLS = [
             },
             "required": ["ruleset_json"]
         }
+    },
+    {
+        "name": "check_attention_fee_economics",
+        "description": "Compute attention fee-stack break-even yield hurdles (clearing CPM uplift, pre-bid CPM surcharges, SSP curation take rates, 3P AI fees) and compare naive linear recall forecasts against Simonov et al. (JMR 2025) bounded quadratic recall.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "base_cpm": {"type": "number", "description": "Baseline clearing CPM (e.g. 4.50 display, 22.0 CTV)."},
+                "cpm_uplift_pct": {"type": "number", "description": "Expected clearing CPM uplift % (default 15.0)."},
+                "prebid_cpm_fee": {"type": "number", "description": "Fixed 3P pre-bid attention segment CPM surcharge (default 0.0)."},
+                "curation_fee_pct": {"type": "number", "description": "SSP curation take rate % (e.g. 11.0 median, default 0.0)."},
+                "ai_fee_pct": {"type": "number", "description": "Third-party AI fee % (default 0.0)."},
+                "agency_fee_pct": {"type": "number", "description": "Agency optimization fee % (default 0.0)."},
+                "budget": {"type": "number", "description": "Fixed media budget (default 100000.0)."},
+                "frequency": {"type": "number", "description": "Average impressions per user (default 6.0)."},
+                "base_dwell_seconds": {"type": "number", "description": "Baseline average dwell per impression in seconds (default 1.10)."},
+                "target_dwell_seconds": {"type": "number", "description": "Expected average dwell per impression in seconds (default 2.40)."},
+                "currency": {"type": "string", "description": "Currency code (default EUR)."}
+            },
+            "required": ["base_cpm"]
+        }
     }
 ]
 
@@ -132,6 +154,22 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
             "max_character_limit": 65536,
             "within_dsl_budget": len(result.script_code) <= 65536
         }
+
+    elif name == "check_attention_fee_economics":
+        res = analyze_attention_fee_economics(
+            base_cpm=float(arguments.get("base_cpm", 4.50)),
+            cpm_uplift_pct=float(arguments.get("cpm_uplift_pct", 15.0)),
+            prebid_cpm_fee=float(arguments.get("prebid_cpm_fee", 0.0)),
+            curation_fee_pct=float(arguments.get("curation_fee_pct", 0.0)),
+            ai_fee_pct=float(arguments.get("ai_fee_pct", 0.0)),
+            agency_fee_pct=float(arguments.get("agency_fee_pct", 0.0)),
+            budget=float(arguments.get("budget", 100000.0)),
+            frequency=float(arguments.get("frequency", 6.0)),
+            base_dwell_seconds=float(arguments.get("base_dwell_seconds", 1.10)),
+            target_dwell_seconds=float(arguments.get("target_dwell_seconds", 2.40)),
+            currency=str(arguments.get("currency", "EUR")),
+        )
+        return res.model_dump()
 
     else:
         raise ValueError(f"Unknown tool: {name}")

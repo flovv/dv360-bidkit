@@ -57,6 +57,8 @@ __all__ = [
     # Primary API entry points
     "compile_script",
     "from_sklearn",
+    "AttentionFeeAnalysis",
+    "analyze_attention_fee_economics",
     "evaluate_script",
     "extract_targeting_block_requests",
     "is_entry_expired",

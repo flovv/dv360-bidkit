@@ -146,9 +146,29 @@ def lint_script(code: str, *, registry_version: str | None = None) -> LintReport
     node_type_counts: dict[str, int] = {}
     has_return = False
 
-    # Track conditions for CTV checks
+    # Track conditions for CTV & Attention safety checks
     saw_ctv_device = False
     saw_domain_check = False
+    saw_time_on_screen = False
+    saw_time_on_screen_cap = False
+    saw_log_call = False
+    saw_attention_signal = False
+    saw_outcome_signal = False
+
+    attention_signals = {
+        "time_on_screen_seconds",
+        "active_view_viewed",
+        "active_view_measurable",
+        "completed_in_view_audible",
+        "audio_completed",
+    }
+    outcome_signals = {
+        "total_conversion_count",
+        "total_conversion_value",
+        "total_conversion_quantity",
+        "ga4_conversions_count",
+        "click",
+    }
 
     for node in ast.walk(tree):
         total_nodes += 1
@@ -196,6 +216,10 @@ def lint_script(code: str, *, registry_version: str | None = None) -> LintReport
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
                 func_name = node.func.id
+                if func_name == "log":
+                    saw_log_call = True
+                if func_name in outcome_signals:
+                    saw_outcome_signal = True
                 actual_line = getattr(node, "lineno", 1) - line_offset
                 sig = SIGNAL_REGISTRY.get(func_name)
                 if sig is None:
@@ -267,6 +291,14 @@ def lint_script(code: str, *, registry_version: str | None = None) -> LintReport
         # Validate identifiers (ast.Name)
         if isinstance(node, ast.Name):
             name = node.id
+            if name == "time_on_screen_seconds":
+                saw_time_on_screen = True
+            if name in attention_signals:
+                saw_attention_signal = True
+            if name in outcome_signals:
+                saw_outcome_signal = True
+            if name == "domain":
+                saw_domain_check = True
             actual_line = getattr(node, "lineno", 1) - line_offset
             if (
                 name not in ALLOWED_BUILTIN_NAMES
@@ -299,23 +331,75 @@ def lint_script(code: str, *, registry_version: str | None = None) -> LintReport
                             )
                         )
 
-        # Contextual check: CTV domain matching
+        # Contextual checks: CTV domain matching & attention dwell capping
         if isinstance(node, ast.Compare):
-            # Check if comparing device_type == 4 (Connected TV)
+            # Check if comparing device_type against CTV values (4=Connected TV, 5=Smart TV)
             if isinstance(node.left, ast.Name) and node.left.id == "device_type":
                 for comp, val in zip(node.ops, node.comparators):
-                    if isinstance(comp, ast.Eq) and isinstance(val, ast.Constant) and val.value == 4:
+                    if isinstance(comp, ast.Eq) and isinstance(val, ast.Constant) and val.value in (4, 5):
                         saw_ctv_device = True
+                    elif isinstance(comp, ast.In) and isinstance(val, (ast.Tuple, ast.List)):
+                        if any(isinstance(elt, ast.Constant) and elt.value in (4, 5) for elt in val.elts):
+                            saw_ctv_device = True
             elif isinstance(node.left, ast.Name) and node.left.id == "domain":
                 saw_domain_check = True
+
+            # Check whether time_on_screen_seconds has an explicit numeric bound/cap
+            left_is_tos = isinstance(node.left, ast.Name) and node.left.id == "time_on_screen_seconds"
+            for comp, val in zip(node.ops, node.comparators):
+                right_is_tos = isinstance(val, ast.Name) and val.id == "time_on_screen_seconds"
+                if isinstance(comp, (ast.Gt, ast.GtE, ast.Lt, ast.LtE)):
+                    if left_is_tos and isinstance(val, ast.Constant) and isinstance(val.value, (int, float)) and val.value > 0:
+                        saw_time_on_screen_cap = True
+                    elif right_is_tos and isinstance(node.left, ast.Constant) and isinstance(node.left.value, (int, float)) and node.left.value > 0:
+                        saw_time_on_screen_cap = True
 
     if saw_ctv_device and saw_domain_check:
         diagnostics.append(
             Diagnostic(
                 code="CTV_DOMAIN_MISMATCH",
                 severity=DiagnosticSeverity.WARNING,
-                message="Script evaluates 'domain' alongside Connected TV (device_type == 4). Connected TV apps report app bundle IDs, not web domains.",
-                corrective_action="Target web domains on desktop/mobile and use separate rules for CTV apps.",
+                message="Script evaluates 'domain' alongside Connected TV (device_type 4/5). Connected TV line items do not support web domains.",
+                corrective_action="Target web domains on desktop/mobile only and use site_id or app_id for CTV inventory.",
+            )
+        )
+
+    if saw_time_on_screen and (not saw_time_on_screen_cap or not saw_log_call):
+        missing_parts = []
+        if not saw_time_on_screen_cap:
+            missing_parts.append("an explicit upper cap (e.g. <= 20 seconds)")
+        if not saw_log_call:
+            missing_parts.append("a concave log() transformation")
+        diagnostics.append(
+            Diagnostic(
+                code="ATTN_UNCAPPED_DWELL",
+                severity=DiagnosticSeverity.WARNING,
+                message=(
+                    "Script uses 'time_on_screen_seconds' without "
+                    + " and ".join(missing_parts)
+                    + ". Uncapped linear dwell triggers Goodhart's Law and channels budget into sticky MFA clutter."
+                ),
+                corrective_action=(
+                    "Cap dwell via explicit if-logic (e.g. _t = 20.0 if time_on_screen_seconds > 20.0 else time_on_screen_seconds) "
+                    "and apply concave decay via log(_t + 1) paired with an upstream MFA exclusion list."
+                ),
+            )
+        )
+
+    if saw_attention_signal and not saw_outcome_signal:
+        diagnostics.append(
+            Diagnostic(
+                code="ATTN_STANDALONE_WITHOUT_OUTCOME",
+                severity=DiagnosticSeverity.WARNING,
+                message=(
+                    "Script scores purely on attention/viewability signals without a conversion or outcome anchor "
+                    "(Floodlight/GA4/click). Per IAB/MRC guidelines and ARF Phase 3, attention should be embedded as "
+                    "a bounded quality weight inside outcome-driven bidding, not as a standalone currency."
+                ),
+                corrective_action=(
+                    "Blend attention weighting with total_conversion_count, total_conversion_value, or ga4_conversions_count, "
+                    "and enforce upstream MFA exclusions."
+                ),
             )
         )
 
