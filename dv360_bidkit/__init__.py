@@ -55,7 +55,11 @@ __version__ = "0.1.2"
 
 __all__ = [
     # Primary API entry points
+    "ConcaveAttentionConfig",
+    "MfaStressTestReport",
+    "compile_concave_attention_script",
     "compile_script",
+    "run_mfa_stress_test",
     "from_sklearn",
     "AttentionFeeAnalysis",
     "analyze_attention_fee_economics",

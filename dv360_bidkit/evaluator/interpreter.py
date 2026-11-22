@@ -317,6 +317,23 @@ class ASTInterpreter:
         if func_name == "bool":
             arg_val, _ = self._eval_node(node.args[0], context, local_vars)
             return bool(arg_val), False
+        if func_name == "log":
+            if len(node.args) == 1:
+                x_val, _ = self._eval_node(node.args[0], context, local_vars)
+                x = float(x_val)
+                if x <= 0.0:
+                    raise EvaluationError(f"log() domain error: argument must be > 0, got {x}")
+                return math.log(x), False
+            elif len(node.args) == 2:
+                x_val, _ = self._eval_node(node.args[0], context, local_vars)
+                base_val, _ = self._eval_node(node.args[1], context, local_vars)
+                x = float(x_val)
+                base = float(base_val)
+                if x <= 0.0 or base <= 0.0 or base == 1.0:
+                    raise EvaluationError(f"log() domain error: invalid x={x}, base={base}")
+                return math.log(x, base), False
+            else:
+                raise EvaluationError(f"log() expects 1 or 2 arguments, got {len(node.args)}")
 
         # Conversion / GA4 helper dispatch
         # Checks if row context provides a function or table lookup

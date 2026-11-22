@@ -10,6 +10,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from dv360_bidkit.compiler.attention import (
+    ConcaveAttentionConfig,
+    compile_concave_attention_script,
+    run_mfa_stress_test,
+)
 from dv360_bidkit.compiler.scripts import compile_script
 from dv360_bidkit.compiler.sklearn import from_sklearn
 from dv360_bidkit.contracts.schemas import (
@@ -416,6 +421,82 @@ def tree_demo_cmd(
         out_p.write_text(script, encoding="utf-8")
         console.print(f"\n[green]✓ Script saved to: {out}[/green]")
 
+
+
+
+@app.command("concave-attention")
+def concave_attention_cmd(
+    dwell_cap: float = typer.Option(20.0, "--dwell-cap", help="Upper cap on time_on_screen_seconds (default 20.0s)"),
+    floodlight_id: int | None = typer.Option(None, "--floodlight-id", help="Optional Floodlight Activity ID for conversion anchor"),
+    conversion_weight: float = typer.Option(25.0, "--conversion-weight", help="Weight applied to Floodlight/GA4 conversions"),
+    use_value: bool = typer.Option(False, "--use-value", help="Use total_conversion_value instead of total_conversion_count"),
+    ga4_property_id: int | None = typer.Option(None, "--ga4-property-id", help="Optional GA4 property ID"),
+    ga4_event: str | None = typer.Option(None, "--ga4-event", help="Optional GA4 conversion event name"),
+    exclude_domains: str | None = typer.Option(None, "--exclude-domains", help="Comma-separated MFA domains to exclude (e.g. spam1.com,spam2.com)"),
+    stress_test: bool = typer.Option(True, "--stress-test/--no-stress-test", help="Run 4-strategy sticky-MFA stress test"),
+    budget: float = typer.Option(100000.0, "--budget", help="Budget for MFA stress-test simulation"),
+    out: str | None = typer.Option(None, "--out", "-o", help="Optional path to save compiled DV360 Python script"),
+    json_out: bool = typer.Option(False, "--json", help="Emit structured JSON output"),
+) -> None:
+    """Compiles a zero-fee concave attention + outcome DV360 Custom Bidding script and runs a sticky-MFA stress test."""
+    excluded = [d.strip() for d in exclude_domains.split(",") if d.strip()] if exclude_domains else []
+    cfg = ConcaveAttentionConfig(
+        dwell_cap_seconds=dwell_cap,
+        floodlight_activity_id=floodlight_id,
+        conversion_weight=conversion_weight,
+        use_conversion_value=use_value,
+        ga4_property_id=ga4_property_id,
+        ga4_event_name=ga4_event,
+        excluded_domains=excluded,
+    )
+    script = compile_concave_attention_script(cfg, validate=True)
+    lint_rep = lint_script(script)
+    stress_rep = run_mfa_stress_test(budget=budget, config=cfg) if stress_test else None
+
+    if out:
+        out_p = Path(out)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        out_p.write_text(script, encoding="utf-8")
+
+    if json_out:
+        payload = {
+            "script_code": script,
+            "byte_length": len(script.encode("utf-8")),
+            "is_valid": lint_rep.is_valid,
+            "warnings": [d.model_dump() for d in lint_rep.diagnostics],
+            "mfa_stress_test": stress_rep.model_dump() if stress_rep else None,
+        }
+        print(json.dumps(payload, indent=2))
+        return
+
+    if stress_rep is not None:
+        table = Table(title=f"Sticky-MFA Auction Stress Test ({stress_rep.currency} {stress_rep.budget:,.0f} Budget)")
+        table.add_column("Strategy", style="cyan")
+        table.add_column("Clearing CPM", justify="right")
+        table.add_column("MFA Share", justify="right")
+        table.add_column("Editorial Share", justify="right")
+        table.add_column("Attentive Hours", justify="right", style="bold")
+        table.add_column("Cost / 1k Att. s", justify="right")
+        table.add_column("vs vCPM", justify="right", style="green")
+
+        for s in stress_rep.strategies:
+            mfa_style = "red" if s.mfa_share_pct >= 25.0 else ("yellow" if s.mfa_share_pct > 0 else "green")
+            table.add_row(
+                s.strategy_name,
+                f"{s.clearing_cpm:.2f}",
+                f"[{mfa_style}]{s.mfa_share_pct:.1f}%[/{mfa_style}]",
+                f"{s.editorial_share_pct:.1f}%",
+                f"{s.attentive_hours:,.1f}",
+                f"{s.cost_per_1k_attentive_seconds:.2f}",
+                f"{s.efficiency_vs_vcpm_pct:+.1f}%",
+            )
+        console.print(table)
+
+    from rich.syntax import Syntax
+    console.print("\n[bold]Compiled Zero-Fee DV360 Concave Attention Script (0 errors, 0 warnings):[/bold]")
+    console.print(Syntax(script, "python", theme="monokai", line_numbers=True))
+    if out:
+        console.print(f"\n[green]✓ Script saved to: {out}[/green]")
 
 
 @app.command("fee-check")

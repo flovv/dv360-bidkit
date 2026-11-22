@@ -7,6 +7,12 @@ import pytest
 from typer.testing import CliRunner
 
 from dv360_bidkit.cli import app
+from dv360_bidkit.compiler.attention import (
+    ConcaveAttentionConfig,
+    compile_concave_attention_script,
+    run_mfa_stress_test,
+)
+from dv360_bidkit.evaluator.interpreter import create_interpreter
 from dv360_bidkit.evaluator.economics import (
     SIMONOV_SATURATION_SECONDS,
     analyze_attention_fee_economics,
@@ -162,3 +168,84 @@ def test_mcp_check_attention_fee_economics():
     )
     assert out["verdict"] == "VIABLE"
     assert out["required_yield_lift_pct"] == pytest.approx(13.36, abs=0.1)
+
+
+def test_interpreter_evaluates_log_function():
+    interp = create_interpreter("return log(time_on_screen_seconds + 1.0)\n")
+    res = interp.evaluate({"time_on_screen_seconds": 19.0})
+    assert res.error is None
+    assert res.score == pytest.approx(2.995732, abs=1e-4)
+
+
+def test_compile_concave_attention_script_zero_warnings():
+    cfg = ConcaveAttentionConfig(
+        dwell_cap_seconds=20.0,
+        floodlight_activity_id=987654,
+        conversion_weight=30.0,
+        excluded_domains=["spam-mfa.example"],
+    )
+    script = compile_concave_attention_script(cfg, validate=True)
+    report = lint_script(script)
+    assert report.is_valid
+    assert len(report.diagnostics) == 0
+    assert "total_conversion_count(987654, 0)" in script
+    assert "log(_safe_t + 1.0)" in script
+    assert "spam-mfa.example" in script
+
+
+def test_mfa_stress_test_proves_concave_plus_exclusion_beats_linear_and_vcpm():
+    rep = run_mfa_stress_test(budget=100_000.0)
+    assert len(rep.strategies) == 4
+    by_name = {s.strategy_name: s for s in rep.strategies}
+    strat_a = by_name["A: Standard vCPM"]
+    strat_b = by_name["B: Naive Uncapped Linear Dwell"]
+    strat_c = by_name["C: Concave Capped + Format"]
+    strat_d = by_name["D: Concave + MFA Exclusion"]
+
+    # Naive linear dwell leaks heavily into 45s sticky MFA clutter
+    assert strat_b.mfa_share_pct > 70.0
+    # Concave capped reduces MFA share dramatically vs naive linear
+    assert strat_c.mfa_share_pct < strat_b.mfa_share_pct
+    # Concave + MFA exclusion eliminates MFA completely and delivers highest attentive hours
+    assert strat_d.mfa_share_pct == 0.0
+    assert strat_d.attentive_hours > strat_a.attentive_hours
+    assert strat_d.cost_per_1k_attentive_seconds < strat_a.cost_per_1k_attentive_seconds
+    assert strat_d.efficiency_vs_vcpm_pct > 0.0
+
+
+def test_cli_concave_attention_json_and_file(tmp_path):
+    out_file = tmp_path / "concave.py"
+    result = runner.invoke(
+        app,
+        [
+            "concave-attention",
+            "--floodlight-id",
+            "12345",
+            "--exclude-domains",
+            "bad-mfa.example",
+            "--out",
+            str(out_file),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_file.exists()
+    payload = json.loads(result.stdout)
+    assert payload["is_valid"] is True
+    assert payload["warnings"] == []
+    assert payload["mfa_stress_test"] is not None
+    assert len(payload["mfa_stress_test"]["strategies"]) == 4
+
+
+def test_mcp_compile_concave_attention_script():
+    out = handle_tool_call(
+        "compile_concave_attention_script",
+        {
+            "dwell_cap_seconds": 20.0,
+            "floodlight_activity_id": 555123,
+            "excluded_domains": ["mfa.example"],
+            "run_stress_test": True,
+        },
+    )
+    assert "log(_safe_t + 1.0)" in out["script_code"]
+    assert out["mfa_stress_test"]["strategies"][-1]["mfa_share_pct"] == 0.0

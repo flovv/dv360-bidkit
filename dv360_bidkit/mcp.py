@@ -11,7 +11,12 @@ import sys
 from typing import Any, Dict, List
 
 from dv360_bidkit import __version__
-from dv360_bidkit.compiler import compile_script
+from dv360_bidkit.compiler import (
+    ConcaveAttentionConfig,
+    compile_concave_attention_script,
+    compile_script,
+    run_mfa_stress_test,
+)
 from dv360_bidkit.contracts import RuleSet
 from dv360_bidkit.io import load_inventory_policy
 from dv360_bidkit.evaluator.economics import analyze_attention_fee_economics
@@ -109,6 +114,23 @@ TOOLS = [
             },
             "required": ["base_cpm"]
         }
+    },
+    {
+        "name": "compile_concave_attention_script",
+        "description": "Compile a zero-fee, DV360 DSL-compliant concave attention + outcome custom bidding script (capped time_on_screen_seconds + log decay + eye-tracking format multipliers + Floodlight/GA4 anchor) and optionally run the 4-strategy sticky-MFA stress test.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dwell_cap_seconds": {"type": "number", "description": "Upper cap on time_on_screen_seconds (default 20.0)."},
+                "floodlight_activity_id": {"type": "integer", "description": "Optional Floodlight Activity ID."},
+                "conversion_weight": {"type": "number", "description": "Weight for Floodlight/GA4 conversions (default 25.0)."},
+                "use_conversion_value": {"type": "boolean", "description": "Use total_conversion_value instead of count (default false)."},
+                "ga4_property_id": {"type": "integer", "description": "Optional GA4 property ID."},
+                "ga4_event_name": {"type": "string", "description": "Optional GA4 conversion event name."},
+                "excluded_domains": {"type": "array", "items": {"type": "string"}, "description": "Optional list of MFA domains to exclude."},
+                "run_stress_test": {"type": "boolean", "description": "Whether to include the 4-strategy sticky-MFA stress test (default true)."}
+            }
+        }
     }
 ]
 
@@ -170,6 +192,24 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
             currency=str(arguments.get("currency", "EUR")),
         )
         return res.model_dump()
+
+    elif name == "compile_concave_attention_script":
+        cfg = ConcaveAttentionConfig(
+            dwell_cap_seconds=float(arguments.get("dwell_cap_seconds", 20.0)),
+            floodlight_activity_id=arguments.get("floodlight_activity_id"),
+            conversion_weight=float(arguments.get("conversion_weight", 25.0)),
+            use_conversion_value=bool(arguments.get("use_conversion_value", False)),
+            ga4_property_id=arguments.get("ga4_property_id"),
+            ga4_event_name=arguments.get("ga4_event_name"),
+            excluded_domains=list(arguments.get("excluded_domains") or []),
+        )
+        script = compile_concave_attention_script(cfg, validate=True)
+        stress = run_mfa_stress_test(config=cfg) if arguments.get("run_stress_test", True) else None
+        return {
+            "script_code": script,
+            "byte_length": len(script.encode("utf-8")),
+            "mfa_stress_test": stress.model_dump() if stress else None,
+        }
 
     else:
         raise ValueError(f"Unknown tool: {name}")
